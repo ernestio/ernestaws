@@ -50,6 +50,10 @@ func New(subject string, body []byte) ernestaws.Event {
 
 // GetBody : Gets the body for this event
 func (ev *Event) GetBody() []byte {
+	var err error
+	if ev.Body, err = json.Marshal(ev); err != nil {
+		log.Println(err.Error())
+	}
 	return ev.Body
 }
 
