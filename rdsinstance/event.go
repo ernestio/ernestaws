@@ -228,8 +228,11 @@ func (ev *Event) Delete() error {
 	}
 
 	_, err := svc.DeleteDBInstance(req)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return deleteSubnetGroup(ev)
 }
 
 // Get : Gets a nat object on aws
@@ -285,4 +288,16 @@ func updateSubnetGroup(ev *Event) (*string, error) {
 	_, err := svc.ModifyDBSubnetGroup(req)
 
 	return req.DBSubnetGroupName, err
+}
+
+func deleteSubnetGroup(ev *Event) error {
+	svc := ev.getRDSClient()
+
+	req := &rds.DeleteDBSubnetGroupInput{
+		DBSubnetGroupName: aws.String(ev.Name + "-SG"),
+	}
+
+	_, err := svc.DeleteDBSubnetGroup(req)
+
+	return err
 }

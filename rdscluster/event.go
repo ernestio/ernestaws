@@ -154,6 +154,11 @@ func (ev *Event) Create() error {
 func (ev *Event) Update() error {
 	svc := ev.getRDSClient()
 
+	_, err := updateSubnetGroup(ev)
+	if err != nil {
+		return err
+	}
+
 	req := &rds.ModifyDBClusterInput{
 		DBClusterIdentifier:        aws.String(ev.Name),
 		Port:                       aws.Int64(ev.Port),
@@ -165,7 +170,7 @@ func (ev *Event) Update() error {
 		ApplyImmediately:           aws.Bool(true),
 	}
 
-	_, err := svc.ModifyDBCluster(req)
+	_, err = svc.ModifyDBCluster(req)
 
 	return err
 }
@@ -185,8 +190,11 @@ func (ev *Event) Delete() error {
 	}
 
 	_, err := svc.DeleteDBCluster(req)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return deleteSubnetGroup(ev)
 }
 
 // Get : Gets a nat object on aws
@@ -228,4 +236,30 @@ func createSubnetGroup(ev *Event) (*string, error) {
 	_, err := svc.CreateDBSubnetGroup(req)
 
 	return req.DBSubnetGroupName, err
+}
+
+func updateSubnetGroup(ev *Event) (*string, error) {
+	svc := ev.getRDSClient()
+
+	req := &rds.ModifyDBSubnetGroupInput{
+		DBSubnetGroupName:        aws.String(ev.Name + "-SG"),
+		DBSubnetGroupDescription: aws.String(ev.Name + "-SG"),
+		SubnetIds:                ev.NetworkAWSIDs,
+	}
+
+	_, err := svc.ModifyDBSubnetGroup(req)
+
+	return req.DBSubnetGroupName, err
+}
+
+func deleteSubnetGroup(ev *Event) error {
+	svc := ev.getRDSClient()
+
+	req := &rds.DeleteDBSubnetGroupInput{
+		DBSubnetGroupName: aws.String(ev.Name + "-SG"),
+	}
+
+	_, err := svc.DeleteDBSubnetGroup(req)
+
+	return err
 }
