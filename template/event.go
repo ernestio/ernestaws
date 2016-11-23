@@ -14,7 +14,7 @@ import (
 
 // Event stores the template data
 type Event struct {
-	ErrorMessage string `json:"error_message,omitempty"`
+	ErrorMessage string `json:"error,omitempty"`
 	Subject      string `json:"-"`
 	Body         []byte `json:"-"`
 }

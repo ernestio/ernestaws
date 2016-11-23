@@ -44,7 +44,7 @@ type Event struct {
 	Subnet                string `json:"range"`
 	IsPublic              bool   `json:"is_public"`
 	AvailabilityZone      string `json:"availability_zone"`
-	ErrorMessage          string `json:"error_message,omitempty"`
+	ErrorMessage          string `json:"error,omitempty"`
 	Subject               string `json:"-"`
 	Body                  []byte `json:"-"`
 }

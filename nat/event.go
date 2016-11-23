@@ -50,7 +50,7 @@ type Event struct {
 	NatGatewayAllocationID string   `json:"nat_gateway_allocation_id"`
 	NatGatewayAllocationIP string   `json:"nat_gateway_allocation_ip"`
 	InternetGatewayID      string   `json:"internet_gateway_id"`
-	ErrorMessage           string   `json:"error_message,omitempty"`
+	ErrorMessage           string   `json:"error,omitempty"`
 	Subject                string   `json:"-"`
 	Body                   []byte   `json:"-"`
 }
