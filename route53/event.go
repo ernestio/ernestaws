@@ -64,7 +64,7 @@ type Event struct {
 	DatacenterRegion string  `json:"datacenter_region"`
 	DatacenterToken  string  `json:"datacenter_token"`
 	DatacenterSecret string  `json:"datacenter_secret"`
-	ErrorMessage     string  `json:"error_message,omitempty"`
+	ErrorMessage     string  `json:"error,omitempty"`
 	Subject          string  `json:"-"`
 	Body             []byte  `json:"-"`
 }
