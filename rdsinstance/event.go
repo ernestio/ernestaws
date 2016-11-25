@@ -44,15 +44,15 @@ type Event struct {
 	Size                  string    `json:"size"`
 	Engine                string    `json:"engine"`
 	EngineVersion         string    `json:"engine_version"`
-	Port                  int64     `json:"port"`
+	Port                  *int64    `json:"port"`
 	Cluster               string    `json:"cluster"`
 	Public                bool      `json:"public"`
 	Endpoint              string    `json:"endpoint"`
 	HotStandby            bool      `json:"hot_standby"`
-	PromotionTier         int64     `json:"promotion_tier"`
+	PromotionTier         *int64    `json:"promotion_tier"`
 	StorageType           string    `json:"storage_type"`
-	StorageSize           int64     `json:"storage_size"`
-	StorageIops           int64     `json:"storage_iops"`
+	StorageSize           *int64    `json:"storage_size"`
+	StorageIops           *int64    `json:"storage_iops"`
 	AvailabilityZone      string    `json:"availability_zone"`
 	SecurityGroups        []string  `json:"security_groups"`
 	SecurityGroupAWSIDs   []*string `json:"security_group_aws_ids"`
@@ -145,13 +145,13 @@ func (ev *Event) Create() error {
 		DBInstanceClass:            aws.String(ev.Size),
 		Engine:                     aws.String(ev.Engine),
 		EngineVersion:              aws.String(ev.EngineVersion),
-		Port:                       aws.Int64(ev.Port),
+		Port:                       ev.Port,
 		DBClusterIdentifier:        aws.String(ev.Cluster),
-		AllocatedStorage:           aws.Int64(ev.StorageSize),
+		AllocatedStorage:           ev.StorageSize,
 		StorageType:                aws.String(ev.StorageType),
-		Iops:                       aws.Int64(ev.StorageIops),
+		Iops:                       ev.StorageIops,
 		MultiAZ:                    aws.Bool(ev.HotStandby),
-		PromotionTier:              aws.Int64(ev.PromotionTier),
+		PromotionTier:              ev.PromotionTier,
 		AvailabilityZone:           aws.String(ev.AvailabilityZone),
 		AutoMinorVersionUpgrade:    aws.Bool(ev.AutoUpgrade),
 		BackupRetentionPeriod:      aws.Int64(ev.BackupRetention),
@@ -190,12 +190,12 @@ func (ev *Event) Update() error {
 		DBInstanceIdentifier:       aws.String(ev.Name),
 		DBInstanceClass:            aws.String(ev.Size),
 		EngineVersion:              aws.String(ev.EngineVersion),
-		DBPortNumber:               aws.Int64(ev.Port),
-		AllocatedStorage:           aws.Int64(ev.StorageSize),
+		DBPortNumber:               ev.Port,
+		AllocatedStorage:           ev.StorageSize,
 		StorageType:                aws.String(ev.StorageType),
-		Iops:                       aws.Int64(ev.StorageIops),
+		Iops:                       ev.StorageIops,
 		MultiAZ:                    aws.Bool(ev.HotStandby),
-		PromotionTier:              aws.Int64(ev.PromotionTier),
+		PromotionTier:              ev.PromotionTier,
 		AutoMinorVersionUpgrade:    aws.Bool(ev.AutoUpgrade),
 		BackupRetentionPeriod:      aws.Int64(ev.BackupRetention),
 		PreferredBackupWindow:      aws.String(ev.BackupWindow),

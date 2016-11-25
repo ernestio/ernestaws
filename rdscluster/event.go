@@ -41,7 +41,7 @@ type Event struct {
 	Name                  string    `json:"name"`
 	Engine                string    `json:"engine"`
 	EngineVersion         string    `json:"engine_version"`
-	Port                  int64     `json:"port"`
+	Port                  *int64    `json:"port"`
 	Endpoint              string    `json:"endpoint"`
 	AvailabilityZones     []*string `json:"availability_zones"`
 	SecurityGroups        []string  `json:"security_groups"`
@@ -51,7 +51,7 @@ type Event struct {
 	DatabaseName          string    `json:"database_name"`
 	DatabaseUsername      string    `json:"database_username"`
 	DatabasePassword      string    `json:"database_password"`
-	BackupRetention       int64     `json:"backup_retention"`
+	BackupRetention       *int64    `json:"backup_retention"`
 	BackupWindow          string    `json:"backup_window"`
 	MaintenanceWindow     string    `json:"maintenance_window"`
 	ReplicationSource     string    `json:"replication_source"`
@@ -127,14 +127,14 @@ func (ev *Event) Create() error {
 		DBClusterIdentifier:         aws.String(ev.Name),
 		Engine:                      aws.String(ev.Engine),
 		EngineVersion:               aws.String(ev.EngineVersion),
-		Port:                        aws.Int64(ev.Port),
+		Port:                        ev.Port,
 		AvailabilityZones:           ev.AvailabilityZones,
 		DatabaseName:                aws.String(ev.DatabaseName),
 		MasterUsername:              aws.String(ev.DatabaseUsername),
 		MasterUserPassword:          aws.String(ev.DatabasePassword),
 		VpcSecurityGroupIds:         ev.SecurityGroupAWSIDs,
 		DBSubnetGroupName:           subnetGroup,
-		BackupRetentionPeriod:       aws.Int64(ev.BackupRetention),
+		BackupRetentionPeriod:       ev.BackupRetention,
 		PreferredBackupWindow:       aws.String(ev.BackupWindow),
 		PreferredMaintenanceWindow:  aws.String(ev.MaintenanceWindow),
 		ReplicationSourceIdentifier: aws.String(ev.ReplicationSource),
@@ -161,9 +161,9 @@ func (ev *Event) Update() error {
 
 	req := &rds.ModifyDBClusterInput{
 		DBClusterIdentifier:        aws.String(ev.Name),
-		Port:                       aws.Int64(ev.Port),
+		Port:                       ev.Port,
 		MasterUserPassword:         aws.String(ev.DatabasePassword),
-		BackupRetentionPeriod:      aws.Int64(ev.BackupRetention),
+		BackupRetentionPeriod:      ev.BackupRetention,
 		PreferredBackupWindow:      aws.String(ev.BackupWindow),
 		PreferredMaintenanceWindow: aws.String(ev.MaintenanceWindow),
 		VpcSecurityGroupIds:        ev.SecurityGroupAWSIDs,
