@@ -36,7 +36,7 @@ type Event struct {
 	DatacenterAccessToken string `json:"datacenter_access_token"`
 	VpcID                 string `json:"vpc_id"`
 	VpcSubnet             string `json:"vpc_subnet"`
-	ErrorMessage          string `json:"error_message,omitempty"`
+	ErrorMessage          string `json:"error,omitempty"`
 	Subject               string `json:"-"`
 	Body                  []byte `json:"-"`
 }

@@ -53,7 +53,7 @@ type Event struct {
 		Type        string `json:"type"`
 		Permissions string `json:"permissions"`
 	} `json:"grantees"`
-	ErrorMessage string `json:"error_message,omitempty"`
+	ErrorMessage string `json:"error,omitempty"`
 	Subject      string `json:"-"`
 	Body         []byte `json:"-"`
 }
