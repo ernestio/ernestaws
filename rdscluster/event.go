@@ -227,6 +227,10 @@ func (ev *Event) getRDSClient() *rds.RDS {
 func createSubnetGroup(ev *Event) (*string, error) {
 	svc := ev.getRDSClient()
 
+	if len(ev.NetworkAWSIDs) < 1 {
+		return nil, nil
+	}
+
 	req := &rds.CreateDBSubnetGroupInput{
 		DBSubnetGroupDescription: aws.String(ev.Name + "-SG"),
 		DBSubnetGroupName:        aws.String(ev.Name + "-SG"),
@@ -240,6 +244,10 @@ func createSubnetGroup(ev *Event) (*string, error) {
 
 func updateSubnetGroup(ev *Event) (*string, error) {
 	svc := ev.getRDSClient()
+
+	if len(ev.NetworkAWSIDs) < 1 {
+		return nil, nil
+	}
 
 	req := &rds.ModifyDBSubnetGroupInput{
 		DBSubnetGroupName:        aws.String(ev.Name + "-SG"),
