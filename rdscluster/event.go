@@ -232,8 +232,8 @@ func createSubnetGroup(ev *Event) (*string, error) {
 	}
 
 	req := &rds.CreateDBSubnetGroupInput{
-		DBSubnetGroupDescription: aws.String(ev.Name + "-SG"),
-		DBSubnetGroupName:        aws.String(ev.Name + "-SG"),
+		DBSubnetGroupDescription: aws.String(ev.Name + "-sg"),
+		DBSubnetGroupName:        aws.String(ev.Name + "-sg"),
 		SubnetIds:                ev.NetworkAWSIDs,
 	}
 
@@ -250,8 +250,8 @@ func updateSubnetGroup(ev *Event) (*string, error) {
 	}
 
 	req := &rds.ModifyDBSubnetGroupInput{
-		DBSubnetGroupName:        aws.String(ev.Name + "-SG"),
-		DBSubnetGroupDescription: aws.String(ev.Name + "-SG"),
+		DBSubnetGroupName:        aws.String(ev.Name + "-sg"),
+		DBSubnetGroupDescription: aws.String(ev.Name + "-sg"),
 		SubnetIds:                ev.NetworkAWSIDs,
 	}
 
@@ -264,7 +264,7 @@ func deleteSubnetGroup(ev *Event) error {
 	svc := ev.getRDSClient()
 
 	req := &rds.DeleteDBSubnetGroupInput{
-		DBSubnetGroupName: aws.String(ev.Name + "-SG"),
+		DBSubnetGroupName: aws.String(ev.Name + "-sg"),
 	}
 
 	_, err := svc.DeleteDBSubnetGroup(req)
