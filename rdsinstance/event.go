@@ -69,7 +69,7 @@ type Event struct {
 	ReplicationSource     string    `json:"replication_source"`
 	License               string    `json:"license"`
 	Timezone              string    `json:"timezone"`
-	ErrorMessage          string    `json:"error_message,omitempty"`
+	ErrorMessage          string    `json:"error,omitempty"`
 	Subject               string    `json:"-"`
 	Body                  []byte    `json:"-"`
 }

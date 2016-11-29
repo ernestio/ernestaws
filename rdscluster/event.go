@@ -56,7 +56,7 @@ type Event struct {
 	MaintenanceWindow     string    `json:"maintenance_window"`
 	ReplicationSource     string    `json:"replication_source"`
 	FinalSnapshot         bool      `json:"final_snapshot"`
-	ErrorMessage          string    `json:"error_message,omitempty"`
+	ErrorMessage          string    `json:"error,omitempty"`
 	Subject               string    `json:"-"`
 	Body                  []byte    `json:"-"`
 }
