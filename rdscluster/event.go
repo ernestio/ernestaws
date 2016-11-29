@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -194,6 +195,8 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
+	waitUntilClusterDeleted(ev)
+
 	return deleteSubnetGroup(ev)
 }
 
@@ -270,4 +273,21 @@ func deleteSubnetGroup(ev *Event) error {
 	_, err := svc.DeleteDBSubnetGroup(req)
 
 	return err
+}
+
+func waitUntilClusterDeleted(ev *Event) {
+	svc := ev.getRDSClient()
+
+	req := &rds.DescribeDBClustersInput{
+		DBClusterIdentifier: aws.String(ev.Name),
+	}
+
+	for {
+		_, err := svc.DescribeDBClusters(req)
+		if err != nil {
+			return
+		}
+
+		time.Sleep(time.Second * 2)
+	}
 }

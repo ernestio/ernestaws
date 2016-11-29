@@ -202,6 +202,15 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
+	waitreq := &rds.DescribeDBInstancesInput{
+		DBInstanceIdentifier: aws.String(ev.Name),
+	}
+
+	err = svc.WaitUntilDBInstanceDeleted(waitreq)
+	if err != nil {
+		return err
+	}
+
 	return deleteSubnetGroup(ev)
 }
 
