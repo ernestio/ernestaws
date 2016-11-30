@@ -41,7 +41,7 @@ type Event struct {
 	VPCID                 string    `json:"vpc_id"`
 	Name                  string    `json:"name"`
 	Engine                string    `json:"engine"`
-	EngineVersion         string    `json:"engine_version"`
+	EngineVersion         *string   `json:"engine_version"`
 	Port                  *int64    `json:"port"`
 	Endpoint              string    `json:"endpoint"`
 	AvailabilityZones     []*string `json:"availability_zones"`
@@ -49,13 +49,13 @@ type Event struct {
 	SecurityGroupAWSIDs   []*string `json:"security_group_aws_ids"`
 	Networks              []string  `json:"networks"`
 	NetworkAWSIDs         []*string `json:"network_aws_ids"`
-	DatabaseName          string    `json:"database_name"`
-	DatabaseUsername      string    `json:"database_username"`
-	DatabasePassword      string    `json:"database_password"`
+	DatabaseName          *string   `json:"database_name"`
+	DatabaseUsername      *string   `json:"database_username"`
+	DatabasePassword      *string   `json:"database_password"`
 	BackupRetention       *int64    `json:"backup_retention"`
-	BackupWindow          string    `json:"backup_window"`
-	MaintenanceWindow     string    `json:"maintenance_window"`
-	ReplicationSource     string    `json:"replication_source"`
+	BackupWindow          *string   `json:"backup_window"`
+	MaintenanceWindow     *string   `json:"maintenance_window"`
+	ReplicationSource     *string   `json:"replication_source"`
 	FinalSnapshot         bool      `json:"final_snapshot"`
 	ErrorMessage          string    `json:"error,omitempty"`
 	Subject               string    `json:"-"`
@@ -127,18 +127,18 @@ func (ev *Event) Create() error {
 	req := &rds.CreateDBClusterInput{
 		DBClusterIdentifier:         aws.String(ev.Name),
 		Engine:                      aws.String(ev.Engine),
-		EngineVersion:               aws.String(ev.EngineVersion),
+		EngineVersion:               ev.EngineVersion,
 		Port:                        ev.Port,
 		AvailabilityZones:           ev.AvailabilityZones,
-		DatabaseName:                aws.String(ev.DatabaseName),
-		MasterUsername:              aws.String(ev.DatabaseUsername),
-		MasterUserPassword:          aws.String(ev.DatabasePassword),
+		DatabaseName:                ev.DatabaseName,
+		MasterUsername:              ev.DatabaseUsername,
+		MasterUserPassword:          ev.DatabasePassword,
 		VpcSecurityGroupIds:         ev.SecurityGroupAWSIDs,
 		DBSubnetGroupName:           subnetGroup,
 		BackupRetentionPeriod:       ev.BackupRetention,
-		PreferredBackupWindow:       aws.String(ev.BackupWindow),
-		PreferredMaintenanceWindow:  aws.String(ev.MaintenanceWindow),
-		ReplicationSourceIdentifier: aws.String(ev.ReplicationSource),
+		PreferredBackupWindow:       ev.BackupWindow,
+		PreferredMaintenanceWindow:  ev.MaintenanceWindow,
+		ReplicationSourceIdentifier: ev.ReplicationSource,
 	}
 
 	resp, err := svc.CreateDBCluster(req)
@@ -163,10 +163,10 @@ func (ev *Event) Update() error {
 	req := &rds.ModifyDBClusterInput{
 		DBClusterIdentifier:        aws.String(ev.Name),
 		Port:                       ev.Port,
-		MasterUserPassword:         aws.String(ev.DatabasePassword),
+		MasterUserPassword:         ev.DatabasePassword,
 		BackupRetentionPeriod:      ev.BackupRetention,
-		PreferredBackupWindow:      aws.String(ev.BackupWindow),
-		PreferredMaintenanceWindow: aws.String(ev.MaintenanceWindow),
+		PreferredBackupWindow:      ev.BackupWindow,
+		PreferredMaintenanceWindow: ev.MaintenanceWindow,
 		VpcSecurityGroupIds:        ev.SecurityGroupAWSIDs,
 		ApplyImmediately:           aws.Bool(true),
 	}
