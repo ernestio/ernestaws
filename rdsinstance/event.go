@@ -261,7 +261,7 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 		Timezone:                   ev.Timezone,
 	}
 
-	resp, err := svc.CreateDBInstance(req)
+	_, err := svc.CreateDBInstance(req)
 	if err != nil {
 		return err
 	}
@@ -275,11 +275,14 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 		return err
 	}
 
-	if resp.DBInstance != nil {
-		if resp.DBInstance.Endpoint != nil {
-			if resp.DBInstance.Endpoint.Address != nil {
-				ev.Endpoint = *resp.DBInstance.Endpoint.Address
-			}
+	resp, err := svc.DescribeDBInstances(waitreq)
+	if err != nil {
+		return err
+	}
+
+	if resp.DBInstances[0].Endpoint != nil {
+		if resp.DBInstances[0].Endpoint.Address != nil {
+			ev.Endpoint = *resp.DBInstances[0].Endpoint.Address
 		}
 	}
 
@@ -300,7 +303,7 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 		SourceDBInstanceIdentifier: ev.ReplicationSource,
 	}
 
-	resp, err := svc.CreateDBInstanceReadReplica(req)
+	_, err := svc.CreateDBInstanceReadReplica(req)
 	if err != nil {
 		return err
 	}
@@ -314,11 +317,14 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 		return err
 	}
 
-	if resp.DBInstance != nil {
-		if resp.DBInstance.Endpoint != nil {
-			if resp.DBInstance.Endpoint.Address != nil {
-				ev.Endpoint = *resp.DBInstance.Endpoint.Address
-			}
+	resp, err := svc.DescribeDBInstances(waitreq)
+	if err != nil {
+		return err
+	}
+
+	if resp.DBInstances[0].Endpoint != nil {
+		if resp.DBInstances[0].Endpoint.Address != nil {
+			ev.Endpoint = *resp.DBInstances[0].Endpoint.Address
 		}
 	}
 
