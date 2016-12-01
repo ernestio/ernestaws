@@ -266,8 +266,21 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 		return err
 	}
 
-	if ev.Cluster == nil || resp.DBInstance.Endpoint != nil {
-		ev.Endpoint = *resp.DBInstance.Endpoint.Address
+	waitreq := &rds.DescribeDBInstancesInput{
+		DBInstanceIdentifier: aws.String(ev.Name),
+	}
+
+	err = svc.WaitUntilDBInstanceAvailable(waitreq)
+	if err != nil {
+		return err
+	}
+
+	if resp.DBInstance != nil {
+		if resp.DBInstance.Endpoint != nil {
+			if resp.DBInstance.Endpoint.Address != nil {
+				ev.Endpoint = *resp.DBInstance.Endpoint.Address
+			}
+		}
 	}
 
 	return nil
@@ -292,7 +305,22 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 		return err
 	}
 
-	ev.Endpoint = *resp.DBInstance.Endpoint.Address
+	waitreq := &rds.DescribeDBInstancesInput{
+		DBInstanceIdentifier: aws.String(ev.Name),
+	}
+
+	err = svc.WaitUntilDBInstanceAvailable(waitreq)
+	if err != nil {
+		return err
+	}
+
+	if resp.DBInstance != nil {
+		if resp.DBInstance.Endpoint != nil {
+			if resp.DBInstance.Endpoint.Address != nil {
+				ev.Endpoint = *resp.DBInstance.Endpoint.Address
+			}
+		}
+	}
 
 	return nil
 }
