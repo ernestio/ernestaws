@@ -36,6 +36,13 @@ var (
 	ErrInstanceTypeInvalid = errors.New("Instance type invalid")
 )
 
+// Volume stores ebs volume data
+type Volume struct {
+	Name        string `json:"name"`
+	Device      string `json:"device"`
+	VolumeAWSID string `json:"volume_aws_id"`
+}
+
 // Event stores the template data
 type Event struct {
 	UUID                  string   `json:"_uuid"`
@@ -58,6 +65,7 @@ type Event struct {
 	PublicIP              string   `json:"public_ip"`
 	ElasticIP             string   `json:"elastic_ip"`
 	AssignElasticIP       bool     `json:"assign_elastic_ip"`
+	Volumes               []Volume `json:"volumes"`
 	ErrorMessage          string   `json:"error,omitempty"`
 	Subject               string   `json:"-"`
 	Body                  []byte   `json:"-"`
@@ -151,11 +159,7 @@ func (ev *Event) Validate() error {
 
 // Create : Creates a instance object on aws
 func (ev *Event) Create() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := ec2.RunInstancesInput{
 		SubnetId:         aws.String(ev.NetworkAWSID),
@@ -199,7 +203,7 @@ func (ev *Event) Create() error {
 
 	ev.InstanceAWSID = *resp.Instances[0].InstanceId
 
-	instance, err := ev.getInstanceByID(svc, resp.Instances[0].InstanceId)
+	instance, err := ev.getInstanceByID(resp.Instances[0].InstanceId)
 	if err != nil {
 		return err
 	}
@@ -208,16 +212,12 @@ func (ev *Event) Create() error {
 		ev.PublicIP = *instance.PublicIpAddress
 	}
 
-	return nil
+	return ev.attachVolumes()
 }
 
 // Update : Updates a instance object on aws
 func (ev *Event) Update() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	builtInstance := ec2.DescribeInstancesInput{
 		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
@@ -290,7 +290,7 @@ func (ev *Event) Update() error {
 		return err
 	}
 
-	instance, err := ev.getInstanceByID(svc, &ev.InstanceAWSID)
+	instance, err := ev.getInstanceByID(&ev.InstanceAWSID)
 	if err != nil {
 		return err
 	}
@@ -304,11 +304,7 @@ func (ev *Event) Update() error {
 
 // Delete : Deletes a instance object on aws
 func (ev *Event) Delete() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := ec2.TerminateInstancesInput{
 		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
@@ -336,6 +332,14 @@ func (ev *Event) Get() error {
 	return errors.New(ev.Subject + " not supported")
 }
 
+func (ev *Event) getEC2Client() *ec2.EC2 {
+	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
+	return ec2.New(session.New(), &aws.Config{
+		Region:      aws.String(ev.DatacenterRegion),
+		Credentials: creds,
+	})
+}
+
 func (ev *Event) assignElasticIP(svc *ec2.EC2, instanceID string) (string, error) {
 	// Create Elastic IP
 	resp, err := svc.AllocateAddress(nil)
@@ -355,7 +359,9 @@ func (ev *Event) assignElasticIP(svc *ec2.EC2, instanceID string) (string, error
 	return *resp.PublicIp, nil
 }
 
-func (ev *Event) getInstanceByID(svc *ec2.EC2, id *string) (*ec2.Instance, error) {
+func (ev *Event) getInstanceByID(id *string) (*ec2.Instance, error) {
+	svc := ev.getEC2Client()
+
 	req := ec2.DescribeInstancesInput{
 		InstanceIds: []*string{id},
 	}
@@ -378,4 +384,43 @@ func (ev *Event) getInstanceByID(svc *ec2.EC2, id *string) (*ec2.Instance, error
 
 func (ev *Event) encodeUserData(data string) string {
 	return base64.StdEncoding.EncodeToString([]byte(data))
+}
+
+func (ev *Event) attachVolumes() error {
+	svc := ev.getEC2Client()
+
+	instance, err := ev.getInstanceByID(&ev.InstanceAWSID)
+	if err != nil {
+		return err
+	}
+
+	for _, vol := range ev.Volumes {
+		// check volume doesn't exist
+		if hasVolumeAttached(instance.BlockDeviceMappings, vol) {
+			continue
+		}
+
+		req := &ec2.AttachVolumeInput{
+			Device:     aws.String(vol.Device),
+			VolumeId:   aws.String(vol.VolumeAWSID),
+			InstanceId: aws.String(ev.InstanceAWSID),
+		}
+
+		_, err = svc.AttachVolume(req)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func hasVolumeAttached(bdms []*ec2.InstanceBlockDeviceMapping, vol Volume) bool {
+	for _, bdm := range bdms {
+		if *bdm.Ebs.VolumeId == vol.VolumeAWSID || *bdm.DeviceName == vol.Device {
+			return true
+		}
+	}
+
+	return false
 }
