@@ -299,7 +299,7 @@ func (ev *Event) Update() error {
 		ev.PublicIP = *instance.PublicIpAddress
 	}
 
-	return nil
+	return ev.attachVolumes()
 }
 
 // Delete : Deletes a instance object on aws
