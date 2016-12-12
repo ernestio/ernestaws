@@ -64,6 +64,7 @@ type Event struct {
 	UserData              string   `json:"user_data"`
 	PublicIP              string   `json:"public_ip"`
 	ElasticIP             string   `json:"elastic_ip"`
+	ElasticIPAWSID        string   `json:"elastic_ip_aws_id"`
 	AssignElasticIP       bool     `json:"assign_elastic_ip"`
 	Volumes               []Volume `json:"volumes"`
 	ErrorMessage          string   `json:"error,omitempty"`
@@ -195,7 +196,7 @@ func (ev *Event) Create() error {
 	}
 
 	if ev.AssignElasticIP {
-		ev.ElasticIP, err = ev.assignElasticIP(svc, *resp.Instances[0].InstanceId)
+		ev.ElasticIP, ev.ElasticIPAWSID, err = ev.assignElasticIP(svc, *resp.Instances[0].InstanceId)
 		if err != nil {
 			return err
 		}
@@ -324,7 +325,16 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
-	return nil
+	if ev.ElasticIP != "" {
+		dreq := &ec2.DisassociateAddressInput{
+			AssociationId: aws.String(ev.ElasticIPAWSID),
+			PublicIp:      aws.String(ev.ElasticIP),
+		}
+
+		_, err = svc.DisassociateAddress(dreq)
+	}
+
+	return err
 }
 
 // Get : Gets a instance object on aws
@@ -340,11 +350,11 @@ func (ev *Event) getEC2Client() *ec2.EC2 {
 	})
 }
 
-func (ev *Event) assignElasticIP(svc *ec2.EC2, instanceID string) (string, error) {
+func (ev *Event) assignElasticIP(svc *ec2.EC2, instanceID string) (string, string, error) {
 	// Create Elastic IP
 	resp, err := svc.AllocateAddress(nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	req := ec2.AssociateAddressInput{
@@ -353,10 +363,10 @@ func (ev *Event) assignElasticIP(svc *ec2.EC2, instanceID string) (string, error
 	}
 	_, err = svc.AssociateAddress(&req)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return *resp.PublicIp, nil
+	return *resp.PublicIp, *resp.AllocationId, nil
 }
 
 func (ev *Event) getInstanceByID(id *string) (*ec2.Instance, error) {
@@ -394,6 +404,22 @@ func (ev *Event) attachVolumes() error {
 		return err
 	}
 
+	for _, bdm := range instance.BlockDeviceMappings {
+		if hasBlockDevice(ev.Volumes, bdm) {
+			continue
+		}
+
+		req := &ec2.DetachVolumeInput{
+			InstanceId: aws.String(ev.InstanceAWSID),
+			VolumeId:   bdm.Ebs.VolumeId,
+		}
+
+		_, err = svc.DetachVolume(req)
+		if err != nil {
+			return err
+		}
+	}
+
 	for _, vol := range ev.Volumes {
 		// check volume doesn't exist
 		if hasVolumeAttached(instance.BlockDeviceMappings, vol) {
@@ -418,6 +444,16 @@ func (ev *Event) attachVolumes() error {
 func hasVolumeAttached(bdms []*ec2.InstanceBlockDeviceMapping, vol Volume) bool {
 	for _, bdm := range bdms {
 		if *bdm.Ebs.VolumeId == vol.VolumeAWSID || *bdm.DeviceName == vol.Device {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasBlockDevice(volumes []Volume, bdm *ec2.InstanceBlockDeviceMapping) bool {
+	for _, vol := range volumes {
+		if vol.VolumeAWSID == *bdm.Ebs.VolumeId || vol.Device == *bdm.DeviceName {
 			return true
 		}
 	}

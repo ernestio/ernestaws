@@ -239,7 +239,14 @@ func (ev *Event) Delete() error {
 		time.Sleep(time.Second * 3)
 	}
 
-	return nil
+	dreq := &ec2.DisassociateAddressInput{
+		AssociationId: aws.String(ev.NatGatewayAllocationID),
+		PublicIp:      aws.String(ev.NatGatewayAllocationIP),
+	}
+
+	_, err = svc.DisassociateAddress(dreq)
+
+	return err
 }
 
 // Get : Gets a nat object on aws
