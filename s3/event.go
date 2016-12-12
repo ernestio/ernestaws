@@ -10,10 +10,10 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ernestio/ernestaws"
+	"github.com/ernestio/ernestaws/credentials"
 )
 
 var (
@@ -56,11 +56,12 @@ type Event struct {
 	ErrorMessage string `json:"error,omitempty"`
 	Subject      string `json:"-"`
 	Body         []byte `json:"-"`
+	CryptoKey    []byte `json:"-"`
 }
 
 // New : Constructor
-func New(subject string, body []byte) ernestaws.Event {
-	n := Event{Subject: subject, Body: body}
+func New(subject string, body, cryptoKey []byte) ernestaws.Event {
+	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 
 	return &n
 }
@@ -224,7 +225,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getS3Client() *s3.S3 {
-	creds := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, "")
+	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
 	s3client := s3.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

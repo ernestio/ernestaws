@@ -17,11 +17,12 @@ type Event struct {
 	ErrorMessage string `json:"error,omitempty"`
 	Subject      string `json:"-"`
 	Body         []byte `json:"-"`
+	CryptoKey    []byte `json:"-"`
 }
 
 // New : Constructor
-func New(subject string, body []byte) ernestaws.Event {
-	n := Event{Subject: subject, Body: body}
+func New(subject string, body, cryptoKey []byte) ernestaws.Event {
+	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 
 	return &n
 }

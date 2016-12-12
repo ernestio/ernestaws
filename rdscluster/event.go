@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/ernestio/ernestaws"
+	"github.com/ernestio/ernestaws/credentials"
 )
 
 var (
@@ -60,11 +60,12 @@ type Event struct {
 	ErrorMessage          string    `json:"error,omitempty"`
 	Subject               string    `json:"-"`
 	Body                  []byte    `json:"-"`
+	CryptoKey             []byte    `json:"-"`
 }
 
 // New : Constructor
-func New(subject string, body []byte) ernestaws.Event {
-	return &Event{Subject: subject, Body: body}
+func New(subject string, body, cryptoKey []byte) ernestaws.Event {
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // Validate checks if all criteria are met
@@ -220,7 +221,7 @@ func (ev *Event) GetSubject() string {
 }
 
 func (ev *Event) getRDSClient() *rds.RDS {
-	creds := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, "")
+	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
 	return rds.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

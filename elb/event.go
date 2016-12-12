@@ -10,10 +10,10 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/ernestio/ernestaws"
+	"github.com/ernestio/ernestaws/credentials"
 )
 
 var (
@@ -63,11 +63,12 @@ type Event struct {
 	ErrorMessage        string     `json:"error,omitempty"`
 	Subject             string     `json:"-"`
 	Body                []byte     `json:"-"`
+	CryptoKey           []byte     `json:"-"`
 }
 
 // New : Constructor
-func New(subject string, body []byte) ernestaws.Event {
-	n := Event{Subject: subject, Body: body}
+func New(subject string, body, cryptoKey []byte) ernestaws.Event {
+	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 
 	return &n
 }
@@ -154,7 +155,7 @@ func (ev *Event) Validate() error {
 
 // Create : Creates a elb object on aws
 func (ev *Event) Create() error {
-	creds := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, "")
+	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
 	svc := elb.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
@@ -208,7 +209,7 @@ func (ev *Event) Create() error {
 
 // Update : Updates a elb object on aws
 func (ev *Event) Update() error {
-	creds := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, "")
+	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
 	svc := elb.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
@@ -255,7 +256,7 @@ func (ev *Event) Update() error {
 
 // Delete : Deletes a elb object on aws
 func (ev *Event) Delete() error {
-	creds := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, "")
+	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
 	svc := elb.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
