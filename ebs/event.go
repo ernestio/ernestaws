@@ -114,7 +114,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterCredentialsInvalid
 	}
 
-	if ev.Subject != "ebs.create.aws" {
+	if ev.Subject != "ebs_volume.create.aws" {
 		if ev.VolumeAWSID == "" {
 			return ErrVolumeIDInvalid
 		}
