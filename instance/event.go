@@ -276,6 +276,11 @@ func (ev *Event) Update() error {
 		return err
 	}
 
+	err = ev.attachVolumes()
+	if err != nil {
+		return err
+	}
+
 	// power the instance back on
 	startreq := ec2.StartInstancesInput{
 		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
@@ -300,7 +305,7 @@ func (ev *Event) Update() error {
 		ev.PublicIP = *instance.PublicIpAddress
 	}
 
-	return ev.attachVolumes()
+	return nil
 }
 
 // Delete : Deletes a instance object on aws
@@ -405,7 +410,7 @@ func (ev *Event) attachVolumes() error {
 	}
 
 	for _, bdm := range instance.BlockDeviceMappings {
-		if hasBlockDevice(ev.Volumes, bdm) {
+		if hasBlockDevice(ev.Volumes, bdm) || *bdm.DeviceName == *instance.RootDeviceName {
 			continue
 		}
 
