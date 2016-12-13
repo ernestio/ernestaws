@@ -333,7 +333,6 @@ func (ev *Event) Delete() error {
 	if ev.ElasticIP != "" {
 		dreq := &ec2.DisassociateAddressInput{
 			AssociationId: aws.String(ev.ElasticIPAWSID),
-			PublicIp:      aws.String(ev.ElasticIP),
 		}
 
 		_, err = svc.DisassociateAddress(dreq)

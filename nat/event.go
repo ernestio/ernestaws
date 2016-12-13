@@ -241,7 +241,6 @@ func (ev *Event) Delete() error {
 
 	dreq := &ec2.DisassociateAddressInput{
 		AssociationId: aws.String(ev.NatGatewayAllocationID),
-		PublicIp:      aws.String(ev.NatGatewayAllocationIP),
 	}
 
 	_, err = svc.DisassociateAddress(dreq)
