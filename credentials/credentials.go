@@ -9,7 +9,7 @@ import (
 
 // NewStaticCredentials : Get the aws credentials object based on a
 // encrypted token and secret pair
-func NewStaticCredentials(secret, id, cryptoKey string) (*credentials.Credentials, error) {
+func NewStaticCredentials(id, secret, cryptoKey string) (*credentials.Credentials, error) {
 	var err error
 
 	if cryptoKey != "" {
