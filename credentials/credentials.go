@@ -9,12 +9,12 @@ import (
 
 // NewStaticCredentials : Get the aws credentials object based on a
 // encrypted token and secret pair
-func NewStaticCredentials(token, secret, cryptoKey string) (*credentials.Credentials, error) {
+func NewStaticCredentials(secret, id, cryptoKey string) (*credentials.Credentials, error) {
 	var err error
 
 	if cryptoKey != "" {
 		crypto := aes.New()
-		if token, err = crypto.Decrypt(token, cryptoKey); err != nil {
+		if id, err = crypto.Decrypt(id, cryptoKey); err != nil {
 			log.Println(err.Error())
 			return nil, err
 		}
@@ -24,5 +24,5 @@ func NewStaticCredentials(token, secret, cryptoKey string) (*credentials.Credent
 		}
 	}
 
-	return credentials.NewStaticCredentials(secret, token, ""), nil
+	return credentials.NewStaticCredentials(id, secret, ""), nil
 }
