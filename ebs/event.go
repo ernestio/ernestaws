@@ -35,25 +35,25 @@ var (
 
 // Event stores the template data
 type Event struct {
-	UUID                  string `json:"_uuid"`
-	BatchID               string `json:"_batch_id"`
-	ProviderType          string `json:"_type"`
-	VPCID                 string `json:"vpc_id"`
-	DatacenterRegion      string `json:"datacenter_region"`
-	DatacenterAccessKey   string `json:"datacenter_secret"`
-	DatacenterAccessToken string `json:"datacenter_token"`
-	VolumeAWSID           string `json:"volume_aws_id"`
-	Name                  string `json:"name"`
-	AvailabilityZone      string `json:"availability_zone"`
-	VolumeType            string `json:"volume_type"`
-	Size                  *int64 `json:"size"`
-	Iops                  *int64 `json:"iops"`
-	Encrypted             bool   `json:"encrypted"`
-	EncryptionKeyID       string `json:"encryption_key_id"`
-	ErrorMessage          string `json:"error,omitempty"`
-	Subject               string `json:"-"`
-	Body                  []byte `json:"-"`
-	CryptoKey             string `json:"-"`
+	UUID               string  `json:"_uuid"`
+	BatchID            string  `json:"_batch_id"`
+	ProviderType       string  `json:"_type"`
+	VPCID              string  `json:"vpc_id"`
+	DatacenterRegion   string  `json:"datacenter_region"`
+	AWSAccessKeyID     string  `json:"aws_access_key_id"`
+	AWSSecretAccessKey string  `json:"aws_secret_access_key"`
+	VolumeAWSID        string  `json:"volume_aws_id"`
+	Name               string  `json:"name"`
+	AvailabilityZone   string  `json:"availability_zone"`
+	VolumeType         string  `json:"volume_type"`
+	Size               *int64  `json:"size"`
+	Iops               *int64  `json:"iops"`
+	Encrypted          bool    `json:"encrypted"`
+	EncryptionKeyID    *string `json:"encryption_key_id"`
+	ErrorMessage       string  `json:"error,omitempty"`
+	Subject            string  `json:"-"`
+	Body               []byte  `json:"-"`
+	CryptoKey          string  `json:"-"`
 }
 
 // New : Constructor
@@ -110,7 +110,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterAccessKey == "" || ev.DatacenterAccessToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -137,11 +137,7 @@ func (ev *Event) Validate() error {
 
 // Create : Creates a instance object on aws
 func (ev *Event) Create() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := &ec2.CreateVolumeInput{
 		AvailabilityZone: aws.String(ev.AvailabilityZone),
@@ -149,7 +145,7 @@ func (ev *Event) Create() error {
 		Size:             ev.Size,
 		Iops:             ev.Iops,
 		Encrypted:        aws.Bool(ev.Encrypted),
-		KmsKeyId:         aws.String(ev.EncryptionKeyID),
+		KmsKeyId:         ev.EncryptionKeyID,
 	}
 
 	resp, err := svc.CreateVolume(req)
@@ -169,11 +165,7 @@ func (ev *Event) Update() error {
 
 // Delete : Deletes a instance object on aws
 func (ev *Event) Delete() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := &ec2.DeleteVolumeInput{
 		VolumeId: aws.String(ev.VolumeAWSID),
@@ -190,4 +182,12 @@ func (ev *Event) Delete() error {
 // Get : Gets a instance object on aws
 func (ev *Event) Get() error {
 	return errors.New(ev.Subject + " not supported")
+}
+
+func (ev *Event) getEC2Client() *ec2.EC2 {
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	return ec2.New(session.New(), &aws.Config{
+		Region:      aws.String(ev.DatacenterRegion),
+		Credentials: creds,
+	})
 }

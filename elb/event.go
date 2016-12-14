@@ -48,8 +48,8 @@ type Event struct {
 	ProviderType        string     `json:"_type"`
 	DatacenterName      string     `json:"datacenter_name,omitempty"`
 	DatacenterRegion    string     `json:"datacenter_region"`
-	DatacenterToken     string     `json:"datacenter_token"`
-	DatacenterSecret    string     `json:"datacenter_secret"`
+	AWSAccessKeyID      string     `json:"aws_access_key_id"`
+	AWSSecretAccessKey  string     `json:"aws_secret_access_key"`
 	VPCID               string     `json:"vpc_id"`
 	ELBName             string     `json:"name"`
 	ELBIsPrivate        bool       `json:"is_private"`
@@ -120,7 +120,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterSecret == "" || ev.DatacenterToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -155,11 +155,7 @@ func (ev *Event) Validate() error {
 
 // Create : Creates a elb object on aws
 func (ev *Event) Create() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
-	svc := elb.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getELBClient()
 
 	// Create Loadbalancer
 	req := elb.CreateLoadBalancerInput{
@@ -209,11 +205,7 @@ func (ev *Event) Create() error {
 
 // Update : Updates a elb object on aws
 func (ev *Event) Update() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
-	svc := elb.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getELBClient()
 
 	req := elb.DescribeLoadBalancersInput{
 		LoadBalancerNames: []*string{aws.String(ev.ELBName)},
@@ -256,11 +248,7 @@ func (ev *Event) Update() error {
 
 // Delete : Deletes a elb object on aws
 func (ev *Event) Delete() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
-	svc := elb.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getELBClient()
 
 	// Delete Loadbalancer
 	req := elb.DeleteLoadBalancerInput{
@@ -294,6 +282,14 @@ func (ev *Event) mapListeners() []*elb.Listener {
 	}
 
 	return l
+}
+
+func (ev *Event) getELBClient() *elb.ELB {
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	return elb.New(session.New(), &aws.Config{
+		Region:      aws.String(ev.DatacenterRegion),
+		Credentials: creds,
+	})
 }
 
 func (ev *Event) updateELBInstances(svc *elb.ELB, lb *elb.LoadBalancerDescription, ni []string) error {

@@ -45,32 +45,32 @@ type Volume struct {
 
 // Event stores the template data
 type Event struct {
-	UUID                  string   `json:"_uuid"`
-	BatchID               string   `json:"_batch_id"`
-	ProviderType          string   `json:"_type"`
-	VPCID                 string   `json:"vpc_id"`
-	DatacenterRegion      string   `json:"datacenter_region"`
-	DatacenterAccessKey   string   `json:"datacenter_secret"`
-	DatacenterAccessToken string   `json:"datacenter_token"`
-	NetworkAWSID          string   `json:"network_aws_id"`
-	NetworkIsPublic       bool     `json:"network_is_public"`
-	SecurityGroupAWSIDs   []string `json:"security_group_aws_ids"`
-	InstanceAWSID         string   `json:"instance_aws_id,omitempty"`
-	Name                  string   `json:"name"`
-	Image                 string   `json:"image"`
-	InstanceType          string   `json:"instance_type"`
-	IP                    string   `json:"ip"`
-	KeyPair               string   `json:"key_pair"`
-	UserData              string   `json:"user_data"`
-	PublicIP              string   `json:"public_ip"`
-	ElasticIP             string   `json:"elastic_ip"`
-	ElasticIPAWSID        string   `json:"elastic_ip_aws_id"`
-	AssignElasticIP       bool     `json:"assign_elastic_ip"`
-	Volumes               []Volume `json:"volumes"`
-	ErrorMessage          string   `json:"error,omitempty"`
-	Subject               string   `json:"-"`
-	Body                  []byte   `json:"-"`
-	CryptoKey             string   `json:"-"`
+	UUID                string   `json:"_uuid"`
+	BatchID             string   `json:"_batch_id"`
+	ProviderType        string   `json:"_type"`
+	VPCID               string   `json:"vpc_id"`
+	DatacenterRegion    string   `json:"datacenter_region"`
+	AWSAccessKeyID      string   `json:"aws_access_key_id"`
+	AWSSecretAccessKey  string   `json:"aws_secret_access_key"`
+	NetworkAWSID        string   `json:"network_aws_id"`
+	NetworkIsPublic     bool     `json:"network_is_public"`
+	SecurityGroupAWSIDs []string `json:"security_group_aws_ids"`
+	InstanceAWSID       string   `json:"instance_aws_id,omitempty"`
+	Name                string   `json:"name"`
+	Image               string   `json:"image"`
+	InstanceType        string   `json:"instance_type"`
+	IP                  string   `json:"ip"`
+	KeyPair             string   `json:"key_pair"`
+	UserData            string   `json:"user_data"`
+	PublicIP            string   `json:"public_ip"`
+	ElasticIP           string   `json:"elastic_ip"`
+	ElasticIPAWSID      string   `json:"elastic_ip_aws_id"`
+	AssignElasticIP     bool     `json:"assign_elastic_ip"`
+	Volumes             []Volume `json:"volumes"`
+	ErrorMessage        string   `json:"error,omitempty"`
+	Subject             string   `json:"-"`
+	Body                []byte   `json:"-"`
+	CryptoKey           string   `json:"-"`
 }
 
 // New : Constructor
@@ -127,7 +127,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterAccessKey == "" || ev.DatacenterAccessToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -347,7 +347,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getEC2Client() *ec2.EC2 {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
 	return ec2.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

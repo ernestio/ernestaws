@@ -49,17 +49,17 @@ type rule struct {
 
 // Event stores the template data
 type Event struct {
-	UUID                  string `json:"_uuid"`
-	BatchID               string `json:"_batch_id"`
-	ProviderType          string `json:"_type"`
-	VPCID                 string `json:"vpc_id"`
-	DatacenterRegion      string `json:"datacenter_region"`
-	DatacenterAccessKey   string `json:"datacenter_secret"`
-	DatacenterAccessToken string `json:"datacenter_token"`
-	NetworkAWSID          string `json:"network_aws_id"`
-	SecurityGroupAWSID    string `json:"security_group_aws_id,omitempty"`
-	SecurityGroupName     string `json:"name"`
-	SecurityGroupRules    struct {
+	UUID               string `json:"_uuid"`
+	BatchID            string `json:"_batch_id"`
+	ProviderType       string `json:"_type"`
+	VPCID              string `json:"vpc_id"`
+	DatacenterRegion   string `json:"datacenter_region"`
+	AWSAccessKeyID     string `json:"aws_access_key_id"`
+	AWSSecretAccessKey string `json:"aws_secret_access_key"`
+	NetworkAWSID       string `json:"network_aws_id"`
+	SecurityGroupAWSID string `json:"security_group_aws_id,omitempty"`
+	SecurityGroupName  string `json:"name"`
+	SecurityGroupRules struct {
 		Ingress []rule `json:"ingress"`
 		Egress  []rule `json:"egress"`
 	} `json:"rules"`
@@ -123,7 +123,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterAccessKey == "" || ev.DatacenterAccessToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -176,11 +176,7 @@ func (ev *Event) Validate() error {
 
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	// Create SecurityGroup
 	req := ec2.CreateSecurityGroupInput{
@@ -233,11 +229,7 @@ func (ev *Event) Create() error {
 
 // Update : Updates a nat object on aws
 func (ev *Event) Update() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	sg, err := ev.securityGroupByID(svc, ev.SecurityGroupAWSID)
 	if err != nil {
@@ -312,11 +304,7 @@ func (ev *Event) Update() error {
 
 // Delete : Deletes a nat object on aws
 func (ev *Event) Delete() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := ec2.DeleteSecurityGroupInput{
 		GroupId: aws.String(ev.SecurityGroupAWSID),
@@ -333,6 +321,14 @@ func (ev *Event) Delete() error {
 // Get : Gets a nat object on aws
 func (ev *Event) Get() error {
 	return errors.New(ev.Subject + " not supported")
+}
+
+func (ev *Event) getEC2Client() *ec2.EC2 {
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	return ec2.New(session.New(), &aws.Config{
+		Region:      aws.String(ev.DatacenterRegion),
+		Credentials: creds,
+	})
 }
 
 func (ev *Event) removeDefaultRule(svc *ec2.EC2, sgID *string) error {

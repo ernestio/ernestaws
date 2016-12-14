@@ -37,18 +37,18 @@ type Listener struct {
 
 // Event stores the template data
 type Event struct {
-	UUID             string `json:"_uuid"`
-	BatchID          string `json:"_batch_id"`
-	ProviderType     string `json:"_type"`
-	DatacenterName   string `json:"datacenter_name,omitempty"`
-	DatacenterRegion string `json:"datacenter_region"`
-	DatacenterToken  string `json:"datacenter_token"`
-	DatacenterSecret string `json:"datacenter_secret"`
-	Name             string `json:"name"`
-	ACL              string `json:"acl"`
-	BucketLocation   string `json:"bucket_location"`
-	BucketURI        string `json:"bucket_uri"`
-	Grantees         []struct {
+	UUID               string `json:"_uuid"`
+	BatchID            string `json:"_batch_id"`
+	ProviderType       string `json:"_type"`
+	DatacenterName     string `json:"datacenter_name,omitempty"`
+	DatacenterRegion   string `json:"datacenter_region"`
+	AWSAccessKeyID     string `json:"aws_access_key_id"`
+	AWSSecretAccessKey string `json:"aws_secret_access_key"`
+	Name               string `json:"name"`
+	ACL                string `json:"acl"`
+	BucketLocation     string `json:"bucket_location"`
+	BucketURI          string `json:"bucket_uri"`
+	Grantees           []struct {
 		ID          string `json:"id"`
 		Type        string `json:"type"`
 		Permissions string `json:"permissions"`
@@ -109,7 +109,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterSecret == "" || ev.DatacenterToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -225,7 +225,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getS3Client() *s3.S3 {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
 	s3client := s3.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

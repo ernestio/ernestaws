@@ -39,8 +39,8 @@ type Event struct {
 	ProviderType           string   `json:"_type"`
 	VPCID                  string   `json:"vpc_id"`
 	DatacenterRegion       string   `json:"datacenter_region"`
-	DatacenterAccessKey    string   `json:"datacenter_secret"`
-	DatacenterAccessToken  string   `json:"datacenter_token"`
+	AWSAccessKeyID         string   `json:"aws_access_key_id"`
+	AWSSecretAccessKey     string   `json:"aws_secret_access_key"`
 	NetworkAWSID           string   `json:"network_aws_id"`
 	PublicNetwork          string   `json:"public_network"`
 	PublicNetworkAWSID     string   `json:"public_network_aws_id"`
@@ -110,7 +110,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterAccessKey == "" || ev.DatacenterAccessToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -133,11 +133,7 @@ func (ev *Event) Validate() error {
 
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	// Create Elastic IP
 	resp, err := svc.AllocateAddress(nil)
@@ -193,11 +189,7 @@ func (ev *Event) Create() error {
 
 // Update : Updates a nat object on aws
 func (ev *Event) Update() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	for _, networkID := range ev.RoutedNetworkAWSIDs {
 		rt, err := ev.createRouteTable(svc, networkID)
@@ -220,11 +212,7 @@ func (ev *Event) Update() error {
 
 // Delete : Deletes a nat object on aws
 func (ev *Event) Delete() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := ec2.DeleteNatGatewayInput{
 		NatGatewayId: aws.String(ev.NatGatewayAWSID),
@@ -251,6 +239,14 @@ func (ev *Event) Delete() error {
 // Get : Gets a nat object on aws
 func (ev *Event) Get() error {
 	return errors.New(ev.Subject + " not supported")
+}
+
+func (ev *Event) getEC2Client() *ec2.EC2 {
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	return ec2.New(session.New(), &aws.Config{
+		Region:      aws.String(ev.DatacenterRegion),
+		Credentials: creds,
+	})
 }
 
 func (ev *Event) internetGatewayByVPCID(svc *ec2.EC2, vpc string) (*ec2.InternetGateway, error) {

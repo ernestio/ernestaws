@@ -27,19 +27,19 @@ var (
 
 // Event stores the template data
 type Event struct {
-	UUID                  string `json:"_uuid"`
-	BatchID               string `json:"_batch_id"`
-	ProviderType          string `json:"_type"`
-	DatacenterName        string `json:"datacenter_name"`
-	DatacenterRegion      string `json:"datacenter_region"`
-	DatacenterAccessKey   string `json:"datacenter_access_key"`
-	DatacenterAccessToken string `json:"datacenter_access_token"`
-	VpcID                 string `json:"vpc_id"`
-	VpcSubnet             string `json:"vpc_subnet"`
-	ErrorMessage          string `json:"error,omitempty"`
-	Subject               string `json:"-"`
-	Body                  []byte `json:"-"`
-	CryptoKey             string `json:"-"`
+	UUID               string `json:"_uuid"`
+	BatchID            string `json:"_batch_id"`
+	ProviderType       string `json:"_type"`
+	DatacenterName     string `json:"datacenter_name"`
+	DatacenterRegion   string `json:"datacenter_region"`
+	AWSAccessKeyID     string `json:"aws_access_key_id"`
+	AWSSecretAccessKey string `json:"aws_secret_access_key"`
+	VpcID              string `json:"vpc_id"`
+	VpcSubnet          string `json:"vpc_subnet"`
+	ErrorMessage       string `json:"error,omitempty"`
+	Subject            string `json:"-"`
+	Body               []byte `json:"-"`
+	CryptoKey          string `json:"-"`
 }
 
 // New : Constructor
@@ -97,7 +97,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterAccessKey == "" || ev.DatacenterAccessToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -106,11 +106,7 @@ func (ev *Event) Validate() error {
 
 // Create : Creates a vpc object on aws
 func (ev *Event) Create() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := ec2.CreateVpcInput{
 		CidrBlock: aws.String(ev.VpcSubnet),
@@ -131,11 +127,7 @@ func (ev *Event) Update() error {
 
 // Delete : Deletes a vpc object on aws
 func (ev *Event) Delete() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := ec2.DeleteVpcInput{
 		VpcId: aws.String(ev.VpcID),
@@ -152,4 +144,12 @@ func (ev *Event) Delete() error {
 // Get : Gets a vpc object on aws
 func (ev *Event) Get() error {
 	return errors.New(ev.Subject + " not supported")
+}
+
+func (ev *Event) getEC2Client() *ec2.EC2 {
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	return ec2.New(session.New(), &aws.Config{
+		Region:      aws.String(ev.DatacenterRegion),
+		Credentials: creds,
+	})
 }
