@@ -52,22 +52,22 @@ type Record struct {
 
 // Event stores the template data
 type Event struct {
-	UUID             string  `json:"_uuid"`
-	BatchID          string  `json:"_batch_id"`
-	ProviderType     string  `json:"_type"`
-	HostedZoneID     string  `json:"hosted_zone_id"`
-	Name             string  `json:"name"`
-	Private          bool    `json:"private"`
-	Records          Records `json:"records"`
-	VPCID            string  `json:"vpc_id"`
-	DatacenterName   string  `json:"datacenter_name,omitempty"`
-	DatacenterRegion string  `json:"datacenter_region"`
-	DatacenterToken  string  `json:"datacenter_token"`
-	DatacenterSecret string  `json:"datacenter_secret"`
-	ErrorMessage     string  `json:"error,omitempty"`
-	Subject          string  `json:"-"`
-	Body             []byte  `json:"-"`
-	CryptoKey        string  `json:"-"`
+	UUID               string  `json:"_uuid"`
+	BatchID            string  `json:"_batch_id"`
+	ProviderType       string  `json:"_type"`
+	HostedZoneID       string  `json:"hosted_zone_id"`
+	Name               string  `json:"name"`
+	Private            bool    `json:"private"`
+	Records            Records `json:"records"`
+	VPCID              string  `json:"vpc_id"`
+	DatacenterName     string  `json:"datacenter_name,omitempty"`
+	DatacenterRegion   string  `json:"datacenter_region"`
+	AWSAccessKeyID     string  `json:"aws_access_key_id"`
+	AWSSecretAccessKey string  `json:"aws_secret_access_key"`
+	ErrorMessage       string  `json:"error,omitempty"`
+	Subject            string  `json:"-"`
+	Body               []byte  `json:"-"`
+	CryptoKey          string  `json:"-"`
 }
 
 // New : Constructor
@@ -124,7 +124,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterSecret == "" || ev.DatacenterToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -214,7 +214,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getRoute53Client() *route53.Route53 {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterSecret, ev.DatacenterToken, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
 	return route53.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

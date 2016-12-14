@@ -32,22 +32,22 @@ var (
 
 // Event stores the network data
 type Event struct {
-	UUID                  string `json:"_uuid"`
-	BatchID               string `json:"_batch_id"`
-	ProviderType          string `json:"_type"`
-	DatacenterRegion      string `json:"datacenter_region"`
-	DatacenterAccessKey   string `json:"datacenter_secret"`
-	DatacenterAccessToken string `json:"datacenter_token"`
-	VPCID                 string `json:"vpc_id"`
-	NetworkAWSID          string `json:"network_aws_id,omitempty"`
-	Name                  string `json:"name"`
-	Subnet                string `json:"range"`
-	IsPublic              bool   `json:"is_public"`
-	AvailabilityZone      string `json:"availability_zone"`
-	ErrorMessage          string `json:"error,omitempty"`
-	Subject               string `json:"-"`
-	Body                  []byte `json:"-"`
-	CryptoKey             string `json:"-"`
+	UUID               string `json:"_uuid"`
+	BatchID            string `json:"_batch_id"`
+	ProviderType       string `json:"_type"`
+	DatacenterRegion   string `json:"datacenter_region"`
+	AWSAccessKeyID     string `json:"aws_access_key_id"`
+	AWSSecretAccessKey string `json:"aws_secret_access_key"`
+	VPCID              string `json:"vpc_id"`
+	NetworkAWSID       string `json:"network_aws_id,omitempty"`
+	Name               string `json:"name"`
+	Subnet             string `json:"range"`
+	IsPublic           bool   `json:"is_public"`
+	AvailabilityZone   string `json:"availability_zone"`
+	ErrorMessage       string `json:"error,omitempty"`
+	Subject            string `json:"-"`
+	Body               []byte `json:"-"`
+	CryptoKey          string `json:"-"`
 }
 
 // New : Constructor
@@ -67,7 +67,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterAccessKey == "" || ev.DatacenterAccessToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -109,11 +109,7 @@ func (ev *Event) Error(err error) {
 
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	req := ec2.CreateSubnetInput{
 		VpcId:            aws.String(ev.VPCID),
@@ -169,11 +165,7 @@ func (ev *Event) Update() error {
 
 // Delete : Deletes a nat object on aws
 func (ev *Event) Delete() error {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
-	svc := ec2.New(session.New(), &aws.Config{
-		Region:      aws.String(ev.DatacenterRegion),
-		Credentials: creds,
-	})
+	svc := ev.getEC2Client()
 
 	err := ev.waitForInterfaceRemoval(svc, ev.NetworkAWSID)
 	if err != nil {
@@ -206,6 +198,14 @@ func (ev *Event) GetBody() []byte {
 // GetSubject : Gets the subject for this event
 func (ev *Event) GetSubject() string {
 	return ev.Subject
+}
+
+func (ev *Event) getEC2Client() *ec2.EC2 {
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	return ec2.New(session.New(), &aws.Config{
+		Region:      aws.String(ev.DatacenterRegion),
+		Credentials: creds,
+	})
 }
 
 func (ev *Event) internetGatewayByVPCID(svc *ec2.EC2, vpc string) (*ec2.InternetGateway, error) {

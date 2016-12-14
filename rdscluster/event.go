@@ -32,35 +32,35 @@ var (
 
 // Event stores the network data
 type Event struct {
-	UUID                  string    `json:"_uuid"`
-	BatchID               string    `json:"_batch_id"`
-	ProviderType          string    `json:"_type"`
-	DatacenterRegion      string    `json:"datacenter_region"`
-	DatacenterAccessKey   string    `json:"datacenter_secret"`
-	DatacenterAccessToken string    `json:"datacenter_token"`
-	VPCID                 string    `json:"vpc_id"`
-	Name                  string    `json:"name"`
-	Engine                string    `json:"engine"`
-	EngineVersion         *string   `json:"engine_version"`
-	Port                  *int64    `json:"port"`
-	Endpoint              string    `json:"endpoint"`
-	AvailabilityZones     []*string `json:"availability_zones"`
-	SecurityGroups        []string  `json:"security_groups"`
-	SecurityGroupAWSIDs   []*string `json:"security_group_aws_ids"`
-	Networks              []string  `json:"networks"`
-	NetworkAWSIDs         []*string `json:"network_aws_ids"`
-	DatabaseName          *string   `json:"database_name"`
-	DatabaseUsername      *string   `json:"database_username"`
-	DatabasePassword      *string   `json:"database_password"`
-	BackupRetention       *int64    `json:"backup_retention"`
-	BackupWindow          *string   `json:"backup_window"`
-	MaintenanceWindow     *string   `json:"maintenance_window"`
-	ReplicationSource     *string   `json:"replication_source"`
-	FinalSnapshot         bool      `json:"final_snapshot"`
-	ErrorMessage          string    `json:"error,omitempty"`
-	Subject               string    `json:"-"`
-	Body                  []byte    `json:"-"`
-	CryptoKey             string    `json:"-"`
+	UUID                string    `json:"_uuid"`
+	BatchID             string    `json:"_batch_id"`
+	ProviderType        string    `json:"_type"`
+	DatacenterRegion    string    `json:"datacenter_region"`
+	AWSAccessKeyID      string    `json:"aws_access_key_id"`
+	AWSSecretAccessKey  string    `json:"aws_secret_access_key"`
+	VPCID               string    `json:"vpc_id"`
+	Name                string    `json:"name"`
+	Engine              string    `json:"engine"`
+	EngineVersion       *string   `json:"engine_version"`
+	Port                *int64    `json:"port"`
+	Endpoint            string    `json:"endpoint"`
+	AvailabilityZones   []*string `json:"availability_zones"`
+	SecurityGroups      []string  `json:"security_groups"`
+	SecurityGroupAWSIDs []*string `json:"security_group_aws_ids"`
+	Networks            []string  `json:"networks"`
+	NetworkAWSIDs       []*string `json:"network_aws_ids"`
+	DatabaseName        *string   `json:"database_name"`
+	DatabaseUsername    *string   `json:"database_username"`
+	DatabasePassword    *string   `json:"database_password"`
+	BackupRetention     *int64    `json:"backup_retention"`
+	BackupWindow        *string   `json:"backup_window"`
+	MaintenanceWindow   *string   `json:"maintenance_window"`
+	ReplicationSource   *string   `json:"replication_source"`
+	FinalSnapshot       bool      `json:"final_snapshot"`
+	ErrorMessage        string    `json:"error,omitempty"`
+	Subject             string    `json:"-"`
+	Body                []byte    `json:"-"`
+	CryptoKey           string    `json:"-"`
 }
 
 // New : Constructor
@@ -78,7 +78,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.DatacenterAccessKey == "" || ev.DatacenterAccessToken == "" {
+	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -221,7 +221,7 @@ func (ev *Event) GetSubject() string {
 }
 
 func (ev *Event) getRDSClient() *rds.RDS {
-	creds, _ := credentials.NewStaticCredentials(ev.DatacenterAccessKey, ev.DatacenterAccessToken, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
 	return rds.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
