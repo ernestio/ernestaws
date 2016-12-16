@@ -227,11 +227,11 @@ func (ev *Event) Delete() error {
 		time.Sleep(time.Second * 3)
 	}
 
-	dreq := &ec2.DisassociateAddressInput{
-		AssociationId: aws.String(ev.NatGatewayAllocationID),
+	rreq := &ec2.ReleaseAddressInput{
+		AllocationId: aws.String(ev.NatGatewayAllocationID),
 	}
 
-	_, err = svc.DisassociateAddress(dreq)
+	_, err = svc.ReleaseAddress(rreq)
 
 	return err
 }
