@@ -331,11 +331,11 @@ func (ev *Event) Delete() error {
 	}
 
 	if ev.ElasticIP != "" {
-		dreq := &ec2.DisassociateAddressInput{
-			AssociationId: aws.String(ev.ElasticIPAWSID),
+		rreq := &ec2.ReleaseAddressInput{
+			AllocationId: aws.String(ev.ElasticIPAWSID),
 		}
 
-		_, err = svc.DisassociateAddress(dreq)
+		_, err = svc.ReleaseAddress(rreq)
 	}
 
 	return err
