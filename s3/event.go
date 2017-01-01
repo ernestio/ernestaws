@@ -53,10 +53,11 @@ type Event struct {
 		Type        string `json:"type"`
 		Permissions string `json:"permissions"`
 	} `json:"grantees"`
-	ErrorMessage string `json:"error,omitempty"`
-	Subject      string `json:"-"`
-	Body         []byte `json:"-"`
-	CryptoKey    string `json:"-"`
+	Tags         map[string]string `json:"tags"`
+	ErrorMessage string            `json:"error,omitempty"`
+	Subject      string            `json:"-"`
+	Body         []byte            `json:"-"`
+	CryptoKey    string            `json:"-"`
 }
 
 // New : Constructor
@@ -157,7 +158,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	return err
+	return nil
 }
 
 // Update : Updates a nat object on aws
@@ -204,8 +205,11 @@ func (ev *Event) Update() error {
 	}
 
 	_, err := s3client.PutBucketAcl(params)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return ev.setTags()
 }
 
 // Delete : Deletes a nat object on aws
@@ -245,4 +249,27 @@ func (ev *Event) getACL() (*s3.GetBucketAclOutput, error) {
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getS3Client()
+
+	req := &s3.PutBucketTaggingInput{
+		Bucket: &ev.Name,
+	}
+
+	tags := s3.Tagging{}
+
+	for key, val := range ev.Tags {
+		tags.TagSet = append(tags.TagSet, &s3.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	req.Tagging = &tags
+
+	_, err := svc.PutBucketTagging(req)
+
+	return err
 }

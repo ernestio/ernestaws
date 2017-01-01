@@ -63,10 +63,11 @@ type Event struct {
 		Ingress []rule `json:"ingress"`
 		Egress  []rule `json:"egress"`
 	} `json:"rules"`
-	ErrorMessage string `json:"error,omitempty"`
-	Subject      string `json:"-"`
-	Body         []byte `json:"-"`
-	CryptoKey    string `json:"-"`
+	Tags         map[string]string `json:"tags"`
+	ErrorMessage string            `json:"error,omitempty"`
+	Subject      string            `json:"-"`
+	Body         []byte            `json:"-"`
+	CryptoKey    string            `json:"-"`
 }
 
 // New : Constructor
@@ -224,7 +225,7 @@ func (ev *Event) Create() error {
 		}
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Update : Updates a nat object on aws
@@ -299,7 +300,7 @@ func (ev *Event) Update() error {
 		}
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Delete : Deletes a nat object on aws
@@ -413,4 +414,23 @@ func (ev *Event) ruleExists(rule *ec2.IpPermission, ruleset []*ec2.IpPermission)
 		}
 	}
 	return false
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getEC2Client()
+
+	req := &ec2.CreateTagsInput{
+		Resources: []*string{&ev.SecurityGroupAWSID},
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &ec2.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.CreateTags(req)
+
+	return err
 }

@@ -33,46 +33,47 @@ var (
 
 // Event stores the network data
 type Event struct {
-	UUID                string    `json:"_uuid"`
-	BatchID             string    `json:"_batch_id"`
-	ProviderType        string    `json:"_type"`
-	DatacenterRegion    string    `json:"datacenter_region"`
-	AWSAccessKeyID      string    `json:"aws_access_key_id"`
-	AWSSecretAccessKey  string    `json:"aws_secret_access_key"`
-	VPCID               string    `json:"vpc_id"`
-	Name                string    `json:"name"`
-	Size                string    `json:"size"`
-	Engine              string    `json:"engine"`
-	EngineVersion       *string   `json:"engine_version"`
-	Port                *int64    `json:"port"`
-	Cluster             *string   `json:"cluster"`
-	Public              bool      `json:"public"`
-	MultiAZ             bool      `json:"multi_az"`
-	PromotionTier       *int64    `json:"promotion_tier"`
-	StorageType         *string   `json:"storage_type"`
-	StorageSize         *int64    `json:"storage_size"`
-	StorageIops         *int64    `json:"storage_iops"`
-	AvailabilityZone    *string   `json:"availability_zone"`
-	SecurityGroups      []string  `json:"security_groups"`
-	SecurityGroupAWSIDs []*string `json:"security_group_aws_ids"`
-	Networks            []string  `json:"networks"`
-	NetworkAWSIDs       []*string `json:"network_aws_ids"`
-	DatabaseName        *string   `json:"database_name"`
-	DatabaseUsername    *string   `json:"database_username"`
-	DatabasePassword    *string   `json:"database_password"`
-	AutoUpgrade         bool      `json:"auto_upgrade"`
-	BackupRetention     *int64    `json:"backup_retention"`
-	BackupWindow        *string   `json:"backup_window"`
-	MaintenanceWindow   *string   `json:"maintenance_window"`
-	FinalSnapshot       bool      `json:"final_snapshot"`
-	ReplicationSource   *string   `json:"replication_source"`
-	License             *string   `json:"license"`
-	Timezone            *string   `json:"timezone"`
-	Endpoint            string    `json:"endpoint"`
-	ErrorMessage        string    `json:"error,omitempty"`
-	Subject             string    `json:"-"`
-	Body                []byte    `json:"-"`
-	CryptoKey           string    `json:"-"`
+	UUID                string            `json:"_uuid"`
+	BatchID             string            `json:"_batch_id"`
+	ProviderType        string            `json:"_type"`
+	DatacenterRegion    string            `json:"datacenter_region"`
+	AWSAccessKeyID      string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
+	VPCID               string            `json:"vpc_id"`
+	Name                string            `json:"name"`
+	Size                string            `json:"size"`
+	Engine              string            `json:"engine"`
+	EngineVersion       *string           `json:"engine_version"`
+	Port                *int64            `json:"port"`
+	Cluster             *string           `json:"cluster"`
+	Public              bool              `json:"public"`
+	MultiAZ             bool              `json:"multi_az"`
+	PromotionTier       *int64            `json:"promotion_tier"`
+	StorageType         *string           `json:"storage_type"`
+	StorageSize         *int64            `json:"storage_size"`
+	StorageIops         *int64            `json:"storage_iops"`
+	AvailabilityZone    *string           `json:"availability_zone"`
+	SecurityGroups      []string          `json:"security_groups"`
+	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
+	Networks            []string          `json:"networks"`
+	NetworkAWSIDs       []*string         `json:"network_aws_ids"`
+	DatabaseName        *string           `json:"database_name"`
+	DatabaseUsername    *string           `json:"database_username"`
+	DatabasePassword    *string           `json:"database_password"`
+	AutoUpgrade         bool              `json:"auto_upgrade"`
+	BackupRetention     *int64            `json:"backup_retention"`
+	BackupWindow        *string           `json:"backup_window"`
+	MaintenanceWindow   *string           `json:"maintenance_window"`
+	FinalSnapshot       bool              `json:"final_snapshot"`
+	ReplicationSource   *string           `json:"replication_source"`
+	License             *string           `json:"license"`
+	Timezone            *string           `json:"timezone"`
+	Endpoint            string            `json:"endpoint"`
+	Tags                map[string]string `json:"tags"`
+	ErrorMessage        string            `json:"error,omitempty"`
+	Subject             string            `json:"-"`
+	Body                []byte            `json:"-"`
+	CryptoKey           string            `json:"-"`
 }
 
 // New : Constructor
@@ -287,7 +288,7 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 		}
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
@@ -329,7 +330,7 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 		}
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 func (ev *Event) getRDSClient() *rds.RDS {
@@ -384,6 +385,25 @@ func deleteSubnetGroup(ev *Event) error {
 	}
 
 	_, err := svc.DeleteDBSubnetGroup(req)
+
+	return err
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getRDSClient()
+
+	req := &rds.AddTagsToResourceInput{
+		ResourceName: &ev.Name,
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &rds.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.AddTagsToResource(req)
 
 	return err
 }
