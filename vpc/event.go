@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/ernestio/ernestaws"
 	"github.com/ernestio/ernestaws/credentials"
 )
 
@@ -27,13 +26,13 @@ var (
 
 // Event stores the template data
 type Event struct {
-	UUID               string            `json:"_uuid"`
-	BatchID            string            `json:"_batch_id"`
-	ProviderType       string            `json:"_type"`
-	DatacenterName     string            `json:"datacenter_name"`
-	DatacenterRegion   string            `json:"datacenter_region"`
-	AWSAccessKeyID     string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
+	UUID               string            `json:"_uuid,omitempty"`
+	BatchID            string            `json:"_batch_id,omitempty"`
+	ProviderType       string            `json:"_type,omitempty"`
+	DatacenterName     string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion   string            `json:"datacenter_region,omitempty"`
+	AWSAccessKeyID     string            `json:"aws_access_key_id,omitempty"`
+	AWSSecretAccessKey string            `json:"aws_secret_access_key,omitempty"`
 	VpcID              string            `json:"vpc_id"`
 	VpcSubnet          string            `json:"vpc_subnet"`
 	Tags               map[string]string `json:"tags"`
@@ -44,7 +43,7 @@ type Event struct {
 }
 
 // New : Constructor
-func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
+func New(subject string, body []byte, cryptoKey string) *Event {
 	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 
 	return &n
@@ -160,16 +159,42 @@ func (ev *Event) setTags() error {
 
 	req := &ec2.CreateTagsInput{
 		Resources: []*string{&ev.VpcID},
-	}
-
-	for key, val := range ev.Tags {
-		req.Tags = append(req.Tags, &ec2.Tag{
-			Key:   &key,
-			Value: &val,
-		})
+		Tags:      mapTags(ev.Tags),
 	}
 
 	_, err := svc.CreateTags(req)
 
 	return err
+}
+
+func mapTags(tags map[string]string) []*ec2.Tag {
+	var t []*ec2.Tag
+
+	for key, val := range tags {
+		t = append(t, &ec2.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	return t
+}
+
+func mapEC2Tags(input []*ec2.Tag) map[string]string {
+	t := make(map[string]string)
+
+	for _, tag := range input {
+		t[*tag.Key] = *tag.Value
+	}
+
+	return t
+}
+
+// ToEvent converts an ec2 vpc object to an ernest event
+func ToEvent(v *ec2.Vpc) *Event {
+	return &Event{
+		VpcID:     *v.VpcId,
+		VpcSubnet: *v.CidrBlock,
+		Tags:      mapEC2Tags(v.Tags),
+	}
 }

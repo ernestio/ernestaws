@@ -489,3 +489,52 @@ func hasBlockDevice(volumes []Volume, bdm *ec2.InstanceBlockDeviceMapping) bool 
 
 	return false
 }
+
+func mapAWSSecurityGroupIDs(gi []*ec2.GroupIdentifier) []string {
+	var sgs []string
+
+	for _, sg := range gi {
+		sgs = append(sgs, *sg.GroupId)
+	}
+
+	return sgs
+}
+
+func mapAWSVolumes(vs []*ec2.InstanceBlockDeviceMapping) []Volume {
+	var vols []Volume
+
+	for _, v := range vs {
+		vols = append(vols, Volume{
+			Device:      *v.DeviceName,
+			VolumeAWSID: *v.Ebs.VolumeId,
+		})
+	}
+
+	return vols
+}
+
+func mapEC2Tags(input []*ec2.Tag) map[string]string {
+	t := make(map[string]string)
+
+	for _, tag := range input {
+		t[*tag.Key] = *tag.Value
+	}
+
+	return t
+}
+
+// ToEvent converts an ec2 instance object to an ernest event
+func ToEvent(i *ec2.Instance) *Event {
+	return &Event{
+		NetworkAWSID:        i.SubnetId,
+		SecurityGroupAWSIDs: mapAWSSecurityGroupIDs(i.SecurityGroups),
+		InstanceAWSID:       *i.InstanceId,
+		InstanceType:        *i.InstanceType,
+		Image:               *i.ImageId,
+		IP:                  *i.PrivateIpAddress,
+		KeyPair:             i.KeyName,
+		PublicIP:            i.PublicIpAddress,
+		Volumes:             mapAWSVolumes(*i.BlockDeviceMappings),
+		Tags:                mapEC2Tags(i.Tags),
+	}
+}

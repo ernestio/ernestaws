@@ -155,7 +155,7 @@ func (ev *Event) Create() error {
 
 	ev.VolumeAWSID = *resp.VolumeId
 
-	return nil
+	return ev.setTags()
 }
 
 // Update : Updates a instance object on aws
@@ -190,4 +190,47 @@ func (ev *Event) getEC2Client() *ec2.EC2 {
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
 	})
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getEC2Client()
+
+	req := &ec2.CreateTagsInput{
+		Resources: []*string{&ev.InstanceAWSID},
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &ec2.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.CreateTags(req)
+
+	return err
+}
+
+func mapEC2Tags(input []*ec2.Tag) map[string]string {
+	t := make(map[string]string)
+
+	for _, tag := range input {
+		t[*tag.Key] = *tag.Value
+	}
+
+	return t
+}
+
+// ToEvent converts an ec2 instance object to an ernest event
+func ToEvent(v *ec2.Volume) *Event {
+	return &Event{
+		VolumeAWSID:      *v.VolumeId,
+		AvailabilityZone: *v.AvailabilityZone,
+		VolumeType:       *v.VolumeType,
+		Size:             *v.Size,
+		Iops:             *v.Iops,
+		Encrypted:        *v.Encrypted,
+		EncryptionKeyID:  *v.KmsKeyId,
+		Tags:             mapEC2Tags(*v.Tags),
+	}
 }
