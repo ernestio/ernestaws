@@ -380,14 +380,3 @@ func (ev *Event) setTags() error {
 
 	return err
 }
-
-// ToEvent converts an ec2 subnet object to an ernest event
-func ToEvent(n *ec2.Subnet) *Event {
-	return &Event{
-		VPCID:            *n.VpcId,
-		NetworkAWSID:     *n.SubnetId,
-		Subnet:           *n.CidrBlock,
-		AvailabilityZone: *n.AvailabilityZone,
-		Tags:             mapEC2Tags(n.Tags),
-	}
-}

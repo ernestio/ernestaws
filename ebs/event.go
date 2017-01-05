@@ -35,25 +35,26 @@ var (
 
 // Event stores the template data
 type Event struct {
-	UUID               string  `json:"_uuid"`
-	BatchID            string  `json:"_batch_id"`
-	ProviderType       string  `json:"_type"`
-	VPCID              string  `json:"vpc_id"`
-	DatacenterRegion   string  `json:"datacenter_region"`
-	AWSAccessKeyID     string  `json:"aws_access_key_id"`
-	AWSSecretAccessKey string  `json:"aws_secret_access_key"`
-	VolumeAWSID        string  `json:"volume_aws_id"`
-	Name               string  `json:"name"`
-	AvailabilityZone   string  `json:"availability_zone"`
-	VolumeType         string  `json:"volume_type"`
-	Size               *int64  `json:"size"`
-	Iops               *int64  `json:"iops"`
-	Encrypted          bool    `json:"encrypted"`
-	EncryptionKeyID    *string `json:"encryption_key_id"`
-	ErrorMessage       string  `json:"error,omitempty"`
-	Subject            string  `json:"-"`
-	Body               []byte  `json:"-"`
-	CryptoKey          string  `json:"-"`
+	UUID               string            `json:"_uuid"`
+	BatchID            string            `json:"_batch_id"`
+	ProviderType       string            `json:"_type"`
+	VPCID              string            `json:"vpc_id"`
+	DatacenterRegion   string            `json:"datacenter_region"`
+	AWSAccessKeyID     string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
+	VolumeAWSID        string            `json:"volume_aws_id"`
+	Name               string            `json:"name"`
+	AvailabilityZone   string            `json:"availability_zone"`
+	VolumeType         string            `json:"volume_type"`
+	Size               *int64            `json:"size"`
+	Iops               *int64            `json:"iops"`
+	Encrypted          bool              `json:"encrypted"`
+	EncryptionKeyID    *string           `json:"encryption_key_id"`
+	Tags               map[string]string `json:"tags"`
+	ErrorMessage       string            `json:"error,omitempty"`
+	Subject            string            `json:"-"`
+	Body               []byte            `json:"-"`
+	CryptoKey          string            `json:"-"`
 }
 
 // New : Constructor
@@ -196,7 +197,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
 	req := &ec2.CreateTagsInput{
-		Resources: []*string{&ev.InstanceAWSID},
+		Resources: []*string{&ev.VolumeAWSID},
 	}
 
 	for key, val := range ev.Tags {
@@ -209,28 +210,4 @@ func (ev *Event) setTags() error {
 	_, err := svc.CreateTags(req)
 
 	return err
-}
-
-func mapEC2Tags(input []*ec2.Tag) map[string]string {
-	t := make(map[string]string)
-
-	for _, tag := range input {
-		t[*tag.Key] = *tag.Value
-	}
-
-	return t
-}
-
-// ToEvent converts an ec2 instance object to an ernest event
-func ToEvent(v *ec2.Volume) *Event {
-	return &Event{
-		VolumeAWSID:      *v.VolumeId,
-		AvailabilityZone: *v.AvailabilityZone,
-		VolumeType:       *v.VolumeType,
-		Size:             *v.Size,
-		Iops:             *v.Iops,
-		Encrypted:        *v.Encrypted,
-		EncryptionKeyID:  *v.KmsKeyId,
-		Tags:             mapEC2Tags(*v.Tags),
-	}
 }

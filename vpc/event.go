@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/ernestio/ernestaws"
 	"github.com/ernestio/ernestaws/credentials"
 )
 
@@ -43,7 +44,7 @@ type Event struct {
 }
 
 // New : Constructor
-func New(subject string, body []byte, cryptoKey string) *Event {
+func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
 	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 
 	return &n
@@ -178,23 +179,4 @@ func mapTags(tags map[string]string) []*ec2.Tag {
 	}
 
 	return t
-}
-
-func mapEC2Tags(input []*ec2.Tag) map[string]string {
-	t := make(map[string]string)
-
-	for _, tag := range input {
-		t[*tag.Key] = *tag.Value
-	}
-
-	return t
-}
-
-// ToEvent converts an ec2 vpc object to an ernest event
-func ToEvent(v *ec2.Vpc) *Event {
-	return &Event{
-		VpcID:     *v.VpcId,
-		VpcSubnet: *v.CidrBlock,
-		Tags:      mapEC2Tags(v.Tags),
-	}
 }
