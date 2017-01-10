@@ -27,37 +27,32 @@ var (
 	ErrS3NameInvalid = errors.New("S3 bucket name is invalid")
 )
 
-// Listener ...
-type Listener struct {
-	FromPort  int64  `json:"from_port"`
-	ToPort    int64  `json:"to_port"`
-	Protocol  string `json:"protocol"`
-	SSLCertID string `json:"ssl_cert"`
+// Grantee ...
+type Grantee struct {
+	ID          string `json:"id"`
+	Type        string `json:"type"`
+	Permissions string `json:"permissions"`
 }
 
 // Event stores the template data
 type Event struct {
-	UUID               string `json:"_uuid"`
-	BatchID            string `json:"_batch_id"`
-	ProviderType       string `json:"_type"`
-	DatacenterName     string `json:"datacenter_name,omitempty"`
-	DatacenterRegion   string `json:"datacenter_region"`
-	AWSAccessKeyID     string `json:"aws_access_key_id"`
-	AWSSecretAccessKey string `json:"aws_secret_access_key"`
-	Name               string `json:"name"`
-	ACL                string `json:"acl"`
-	BucketLocation     string `json:"bucket_location"`
-	BucketURI          string `json:"bucket_uri"`
-	Grantees           []struct {
-		ID          string `json:"id"`
-		Type        string `json:"type"`
-		Permissions string `json:"permissions"`
-	} `json:"grantees"`
-	Tags         map[string]string `json:"tags"`
-	ErrorMessage string            `json:"error,omitempty"`
-	Subject      string            `json:"-"`
-	Body         []byte            `json:"-"`
-	CryptoKey    string            `json:"-"`
+	UUID               string            `json:"_uuid"`
+	BatchID            string            `json:"_batch_id"`
+	ProviderType       string            `json:"_type"`
+	DatacenterName     string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion   string            `json:"datacenter_region"`
+	AWSAccessKeyID     string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
+	Name               string            `json:"name"`
+	ACL                string            `json:"acl"`
+	BucketLocation     string            `json:"bucket_location"`
+	BucketURI          string            `json:"bucket_uri"`
+	Grantees           []Grantee         `json:"grantees"`
+	Tags               map[string]string `json:"tags"`
+	ErrorMessage       string            `json:"error,omitempty"`
+	Subject            string            `json:"-"`
+	Body               []byte            `json:"-"`
+	CryptoKey          string            `json:"-"`
 }
 
 // New : Constructor

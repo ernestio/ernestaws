@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-package rdscluster
+package rdsinstance
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
@@ -33,31 +33,26 @@ func mapFilters(tags map[string]string) []*rds.Filter {
 	return f
 }
 
-// FindRDSClusters : Find rds clusters on aws
-func FindRDSClusters(q *ernestaws.Query) error {
+// FindRDSInstances : Find rds clusters on aws
+func FindRDSInstances(q *ernestaws.Query) error {
 	svc := getRDSClient(q)
 
-	req := &rds.DescribeDBClustersInput{
+	req := &rds.DescribeDBInstancesInput{
 		Filters: mapFilters(q.Tags),
 	}
 
-	resp, err := svc.DescribeDBClusters(req)
+	resp, err := svc.DescribeDBInstances(req)
 	if err != nil {
 		return err
 	}
 
-	for _, c := range resp.DBClusters {
-		tags, err := getClusterTagDescriptions(svc, c.DBClusterIdentifier)
+	for _, i := range resp.DBInstances {
+		tags, err := getInstanceTagDescriptions(svc, i.DBInstanceIdentifier)
 		if err != nil {
 			return err
 		}
 
-		sg, err := getSubnetGroup(svc, c.DBSubnetGroup)
-		if err != nil {
-			return err
-		}
-
-		q.Results = append(q.Results, ToEvent(c, sg, tags))
+		q.Results = append(q.Results, ToEvent(i, tags))
 	}
 
 	return nil
@@ -73,7 +68,7 @@ func mapRDSTags(input []*rds.Tag) map[string]string {
 	return t
 }
 
-func getClusterTagDescriptions(svc *rds.RDS, name *string) ([]*rds.Tag, error) {
+func getInstanceTagDescriptions(svc *rds.RDS, name *string) ([]*rds.Tag, error) {
 	treq := &rds.ListTagsForResourceInput{
 		ResourceName: name,
 	}
@@ -81,16 +76,6 @@ func getClusterTagDescriptions(svc *rds.RDS, name *string) ([]*rds.Tag, error) {
 	resp, err := svc.ListTagsForResource(treq)
 
 	return resp.TagList, err
-}
-
-func getSubnetGroup(svc *rds.RDS, name *string) (*rds.DBSubnetGroup, error) {
-	req := &rds.DescribeDBSubnetGroupsInput{
-		DBSubnetGroupName: name,
-	}
-
-	resp, err := svc.DescribeDBSubnetGroups(req)
-
-	return resp.DBSubnetGroups[0], err
 }
 
 func mapSubnetGroups(subnetgroup *rds.DBSubnetGroup) []*string {
@@ -113,24 +98,36 @@ func mapRDSSecurityGroups(sgroups []*rds.VpcSecurityGroupMembership) []*string {
 	return sgs
 }
 
-// ToEvent converts an rds cluster object to an ernest event
-func ToEvent(c *rds.DBCluster, sg *rds.DBSubnetGroup, tags []*rds.Tag) *Event {
+// ToEvent converts an rds instance object to an ernest event
+func ToEvent(i *rds.DBInstance, tags []*rds.Tag) *Event {
 	e := &Event{
-		Name:                *c.DBClusterIdentifier,
-		Engine:              *c.Engine,
-		EngineVersion:       c.EngineVersion,
-		Port:                c.Port,
-		Endpoint:            *c.Endpoint,
-		AvailabilityZones:   c.AvailabilityZones,
-		DatabaseName:        c.DatabaseName,
-		DatabaseUsername:    c.MasterUsername,
-		BackupRetention:     c.BackupRetentionPeriod,
-		BackupWindow:        c.PreferredBackupWindow,
-		MaintenanceWindow:   c.PreferredMaintenanceWindow,
-		ReplicationSource:   c.ReplicationSourceIdentifier,
-		NetworkAWSIDs:       mapSubnetGroups(sg),
-		SecurityGroupAWSIDs: mapRDSSecurityGroups(c.VpcSecurityGroups),
-		Tags:                mapRDSTags(tags),
+		Name:                *i.DBClusterIdentifier,
+		Endpoint:            *i.Endpoint.Address,
+		Port:                i.Endpoint.Port,
+		Engine:              *i.Engine,
+		EngineVersion:       i.EngineVersion,
+		Public:              *i.PubliclyAccessible,
+		MultiAZ:             *i.MultiAZ,
+		PromotionTier:       i.PromotionTier,
+		AutoUpgrade:         *i.AutoMinorVersionUpgrade,
+		Cluster:             i.DBClusterIdentifier,
+		DatabaseName:        i.DBName,
+		DatabaseUsername:    i.MasterUsername,
+		StorageIops:         i.Iops,
+		StorageType:         i.StorageType,
+		StorageSize:         i.AllocatedStorage,
+		BackupRetention:     i.BackupRetentionPeriod,
+		BackupWindow:        i.PreferredBackupWindow,
+		MaintenanceWindow:   i.PreferredMaintenanceWindow,
+		ReplicationSource:   i.ReadReplicaSourceDBInstanceIdentifier,
+		License:             i.LicenseModel,
+		Timezone:            i.Timezone,
+		SecurityGroupAWSIDs: mapRDSSecurityGroups(i.VpcSecurityGroups),
+		NetworkAWSIDs:       mapSubnetGroups(i.DBSubnetGroup),
+		AvailabilityZone:    i.AvailabilityZone,
+		// FinalSnapshot: i. Cannot be inferred ....
+
+		Tags: mapRDSTags(tags),
 	}
 	return e
 }
