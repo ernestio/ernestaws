@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -72,9 +73,11 @@ type Event struct {
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
-	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
 
-	return &n
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // GetBody : Gets the body for this event
@@ -173,6 +176,11 @@ func (ev *Event) Validate() error {
 	}
 
 	return nil
+}
+
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
 }
 
 // Create : Creates a nat object on aws

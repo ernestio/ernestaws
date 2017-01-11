@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -66,6 +67,10 @@ type Event struct {
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
+
 	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
@@ -115,6 +120,11 @@ func (ev *Event) Error(err error) {
 	ev.ErrorMessage = err.Error()
 
 	ev.Body, err = json.Marshal(ev)
+}
+
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
 }
 
 // Create : Creates a nat object on aws
