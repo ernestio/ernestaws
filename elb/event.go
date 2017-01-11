@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -43,34 +44,37 @@ type Listener struct {
 
 // Event stores the template data
 type Event struct {
-	UUID                string     `json:"_uuid"`
-	BatchID             string     `json:"_batch_id"`
-	ProviderType        string     `json:"_type"`
-	DatacenterName      string     `json:"datacenter_name,omitempty"`
-	DatacenterRegion    string     `json:"datacenter_region"`
-	AWSAccessKeyID      string     `json:"aws_access_key_id"`
-	AWSSecretAccessKey  string     `json:"aws_secret_access_key"`
-	VPCID               string     `json:"vpc_id"`
-	ELBName             string     `json:"name"`
-	ELBIsPrivate        bool       `json:"is_private"`
-	ELBListeners        []Listener `json:"listeners"`
-	ELBDNSName          string     `json:"dns_name"`
-	InstanceNames       []string   `json:"instance_names"`
-	InstanceAWSIDs      []string   `json:"instance_aws_ids"`
-	NetworkAWSIDs       []string   `json:"network_aws_ids"`
-	SecurityGroups      []string   `json:"security_groups"`
-	SecurityGroupAWSIDs []string   `json:"security_group_aws_ids"`
-	ErrorMessage        string     `json:"error,omitempty"`
-	Subject             string     `json:"-"`
-	Body                []byte     `json:"-"`
-	CryptoKey           string     `json:"-"`
+	UUID                string            `json:"_uuid"`
+	BatchID             string            `json:"_batch_id"`
+	ProviderType        string            `json:"_type"`
+	DatacenterName      string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion    string            `json:"datacenter_region"`
+	AWSAccessKeyID      string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
+	VPCID               string            `json:"vpc_id"`
+	ELBName             string            `json:"name"`
+	ELBIsPrivate        bool              `json:"is_private"`
+	ELBListeners        []Listener        `json:"listeners"`
+	ELBDNSName          string            `json:"dns_name"`
+	InstanceNames       []string          `json:"instance_names"`
+	InstanceAWSIDs      []string          `json:"instance_aws_ids"`
+	NetworkAWSIDs       []string          `json:"network_aws_ids"`
+	SecurityGroups      []string          `json:"security_groups"`
+	SecurityGroupAWSIDs []string          `json:"security_group_aws_ids"`
+	Tags                map[string]string `json:"tags"`
+	ErrorMessage        string            `json:"error,omitempty"`
+	Subject             string            `json:"-"`
+	Body                []byte            `json:"-"`
+	CryptoKey           string            `json:"-"`
 }
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
-	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
 
-	return &n
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // GetBody : Gets the body for this event
@@ -153,6 +157,11 @@ func (ev *Event) Validate() error {
 	return nil
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a elb object on aws
 func (ev *Event) Create() error {
 	svc := ev.getELBClient()
@@ -200,7 +209,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Update : Updates a elb object on aws
@@ -243,7 +252,7 @@ func (ev *Event) Update() error {
 		return err
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Delete : Deletes a elb object on aws
@@ -515,4 +524,23 @@ func (ev *Event) subnetsToDetach(newSubnets []string, currentSubnets []*string) 
 	}
 
 	return s
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getELBClient()
+
+	req := &elb.AddTagsInput{
+		LoadBalancerNames: []*string{&ev.ELBName},
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &elb.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.AddTags(req)
+
+	return err
 }

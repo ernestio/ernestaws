@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -27,43 +28,41 @@ var (
 	ErrS3NameInvalid = errors.New("S3 bucket name is invalid")
 )
 
-// Listener ...
-type Listener struct {
-	FromPort  int64  `json:"from_port"`
-	ToPort    int64  `json:"to_port"`
-	Protocol  string `json:"protocol"`
-	SSLCertID string `json:"ssl_cert"`
+// Grantee ...
+type Grantee struct {
+	ID          string `json:"id"`
+	Type        string `json:"type"`
+	Permissions string `json:"permissions"`
 }
 
 // Event stores the template data
 type Event struct {
-	UUID               string `json:"_uuid"`
-	BatchID            string `json:"_batch_id"`
-	ProviderType       string `json:"_type"`
-	DatacenterName     string `json:"datacenter_name,omitempty"`
-	DatacenterRegion   string `json:"datacenter_region"`
-	AWSAccessKeyID     string `json:"aws_access_key_id"`
-	AWSSecretAccessKey string `json:"aws_secret_access_key"`
-	Name               string `json:"name"`
-	ACL                string `json:"acl"`
-	BucketLocation     string `json:"bucket_location"`
-	BucketURI          string `json:"bucket_uri"`
-	Grantees           []struct {
-		ID          string `json:"id"`
-		Type        string `json:"type"`
-		Permissions string `json:"permissions"`
-	} `json:"grantees"`
-	ErrorMessage string `json:"error,omitempty"`
-	Subject      string `json:"-"`
-	Body         []byte `json:"-"`
-	CryptoKey    string `json:"-"`
+	UUID               string            `json:"_uuid"`
+	BatchID            string            `json:"_batch_id"`
+	ProviderType       string            `json:"_type"`
+	DatacenterName     string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion   string            `json:"datacenter_region"`
+	AWSAccessKeyID     string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
+	Name               string            `json:"name"`
+	ACL                string            `json:"acl"`
+	BucketLocation     string            `json:"bucket_location"`
+	BucketURI          string            `json:"bucket_uri"`
+	Grantees           []Grantee         `json:"grantees"`
+	Tags               map[string]string `json:"tags"`
+	ErrorMessage       string            `json:"error,omitempty"`
+	Subject            string            `json:"-"`
+	Body               []byte            `json:"-"`
+	CryptoKey          string            `json:"-"`
 }
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
-	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
 
-	return &n
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // GetBody : Gets the body for this event
@@ -120,6 +119,11 @@ func (ev *Event) Validate() error {
 	return nil
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
 	s3client := ev.getS3Client()
@@ -157,7 +161,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	return err
+	return nil
 }
 
 // Update : Updates a nat object on aws
@@ -204,8 +208,11 @@ func (ev *Event) Update() error {
 	}
 
 	_, err := s3client.PutBucketAcl(params)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return ev.setTags()
 }
 
 // Delete : Deletes a nat object on aws
@@ -245,4 +252,27 @@ func (ev *Event) getACL() (*s3.GetBucketAclOutput, error) {
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getS3Client()
+
+	req := &s3.PutBucketTaggingInput{
+		Bucket: &ev.Name,
+	}
+
+	tags := s3.Tagging{}
+
+	for key, val := range ev.Tags {
+		tags.TagSet = append(tags.TagSet, &s3.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	req.Tagging = &tags
+
+	_, err := svc.PutBucketTagging(req)
+
+	return err
 }

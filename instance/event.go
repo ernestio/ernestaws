@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -45,39 +46,42 @@ type Volume struct {
 
 // Event stores the template data
 type Event struct {
-	UUID                string   `json:"_uuid"`
-	BatchID             string   `json:"_batch_id"`
-	ProviderType        string   `json:"_type"`
-	VPCID               string   `json:"vpc_id"`
-	DatacenterRegion    string   `json:"datacenter_region"`
-	AWSAccessKeyID      string   `json:"aws_access_key_id"`
-	AWSSecretAccessKey  string   `json:"aws_secret_access_key"`
-	NetworkAWSID        string   `json:"network_aws_id"`
-	NetworkIsPublic     bool     `json:"network_is_public"`
-	SecurityGroupAWSIDs []string `json:"security_group_aws_ids"`
-	InstanceAWSID       string   `json:"instance_aws_id,omitempty"`
-	Name                string   `json:"name"`
-	Image               string   `json:"image"`
-	InstanceType        string   `json:"instance_type"`
-	IP                  string   `json:"ip"`
-	KeyPair             string   `json:"key_pair"`
-	UserData            string   `json:"user_data"`
-	PublicIP            string   `json:"public_ip"`
-	ElasticIP           string   `json:"elastic_ip"`
-	ElasticIPAWSID      string   `json:"elastic_ip_aws_id"`
-	AssignElasticIP     bool     `json:"assign_elastic_ip"`
-	Volumes             []Volume `json:"volumes"`
-	ErrorMessage        string   `json:"error,omitempty"`
-	Subject             string   `json:"-"`
-	Body                []byte   `json:"-"`
-	CryptoKey           string   `json:"-"`
+	UUID                string            `json:"_uuid"`
+	BatchID             string            `json:"_batch_id"`
+	ProviderType        string            `json:"_type"`
+	VPCID               string            `json:"vpc_id"`
+	DatacenterRegion    string            `json:"datacenter_region"`
+	AWSAccessKeyID      string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
+	NetworkAWSID        string            `json:"network_aws_id"`
+	NetworkIsPublic     bool              `json:"network_is_public"`
+	SecurityGroupAWSIDs []string          `json:"security_group_aws_ids"`
+	InstanceAWSID       string            `json:"instance_aws_id,omitempty"`
+	Name                string            `json:"name"`
+	Image               string            `json:"image"`
+	InstanceType        string            `json:"instance_type"`
+	IP                  string            `json:"ip"`
+	KeyPair             string            `json:"key_pair"`
+	UserData            string            `json:"user_data"`
+	PublicIP            string            `json:"public_ip"`
+	ElasticIP           string            `json:"elastic_ip"`
+	ElasticIPAWSID      string            `json:"elastic_ip_aws_id"`
+	AssignElasticIP     bool              `json:"assign_elastic_ip"`
+	Volumes             []Volume          `json:"volumes"`
+	Tags                map[string]string `json:"tags"`
+	ErrorMessage        string            `json:"error,omitempty"`
+	Subject             string            `json:"-"`
+	Body                []byte            `json:"-"`
+	CryptoKey           string            `json:"-"`
 }
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
-	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
 
-	return &n
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // GetBody : Gets the body for this event
@@ -158,6 +162,11 @@ func (ev *Event) Validate() error {
 	return nil
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a instance object on aws
 func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
@@ -211,6 +220,11 @@ func (ev *Event) Create() error {
 
 	if instance.PublicIpAddress != nil {
 		ev.PublicIP = *instance.PublicIpAddress
+	}
+
+	err = ev.setTags()
+	if err != nil {
+		return err
 	}
 
 	return ev.attachVolumes()
@@ -305,7 +319,7 @@ func (ev *Event) Update() error {
 		ev.PublicIP = *instance.PublicIpAddress
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Delete : Deletes a instance object on aws
@@ -445,6 +459,25 @@ func (ev *Event) attachVolumes() error {
 	return nil
 }
 
+func (ev *Event) setTags() error {
+	svc := ev.getEC2Client()
+
+	req := &ec2.CreateTagsInput{
+		Resources: []*string{&ev.InstanceAWSID},
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &ec2.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.CreateTags(req)
+
+	return err
+}
+
 func hasVolumeAttached(bdms []*ec2.InstanceBlockDeviceMapping, vol Volume) bool {
 	for _, bdm := range bdms {
 		if *bdm.Ebs.VolumeId == vol.VolumeAWSID || *bdm.DeviceName == vol.Device {
@@ -463,4 +496,14 @@ func hasBlockDevice(volumes []Volume, bdm *ec2.InstanceBlockDeviceMapping) bool 
 	}
 
 	return false
+}
+
+func mapEC2Tags(input []*ec2.Tag) map[string]string {
+	t := make(map[string]string)
+
+	for _, tag := range input {
+		t[*tag.Key] = *tag.Value
+	}
+
+	return t
 }

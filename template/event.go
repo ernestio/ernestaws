@@ -69,6 +69,11 @@ func (ev *Event) Validate() error {
 	return nil
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
 	return errors.New(ev.Subject + " not supported")

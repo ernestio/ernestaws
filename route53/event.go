@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -52,29 +53,32 @@ type Record struct {
 
 // Event stores the template data
 type Event struct {
-	UUID               string  `json:"_uuid"`
-	BatchID            string  `json:"_batch_id"`
-	ProviderType       string  `json:"_type"`
-	HostedZoneID       string  `json:"hosted_zone_id"`
-	Name               string  `json:"name"`
-	Private            bool    `json:"private"`
-	Records            Records `json:"records"`
-	VPCID              string  `json:"vpc_id"`
-	DatacenterName     string  `json:"datacenter_name,omitempty"`
-	DatacenterRegion   string  `json:"datacenter_region"`
-	AWSAccessKeyID     string  `json:"aws_access_key_id"`
-	AWSSecretAccessKey string  `json:"aws_secret_access_key"`
-	ErrorMessage       string  `json:"error,omitempty"`
-	Subject            string  `json:"-"`
-	Body               []byte  `json:"-"`
-	CryptoKey          string  `json:"-"`
+	UUID               string            `json:"_uuid"`
+	BatchID            string            `json:"_batch_id"`
+	ProviderType       string            `json:"_type"`
+	HostedZoneID       string            `json:"hosted_zone_id"`
+	Name               string            `json:"name"`
+	Private            bool              `json:"private"`
+	Records            Records           `json:"records"`
+	VPCID              string            `json:"vpc_id"`
+	DatacenterName     string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion   string            `json:"datacenter_region"`
+	AWSAccessKeyID     string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
+	ErrorMessage       string            `json:"error,omitempty"`
+	Tags               map[string]string `json:"tags"`
+	Subject            string            `json:"-"`
+	Body               []byte            `json:"-"`
+	CryptoKey          string            `json:"-"`
 }
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
-	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
 
-	return &n
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // GetBody : Gets the body for this event
@@ -135,6 +139,11 @@ func (ev *Event) Validate() error {
 	return nil
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a route53 object on aws
 func (ev *Event) Create() error {
 	svc := ev.getRoute53Client()
@@ -185,7 +194,7 @@ func (ev *Event) Update() error {
 		return err
 	}
 
-	return err
+	return ev.setTags()
 }
 
 // Delete : Deletes a route53 object on aws
@@ -297,4 +306,23 @@ func entryName(entry string) string {
 		return entry[:len(entry)-1]
 	}
 	return entry
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getRoute53Client()
+
+	req := &route53.ChangeTagsForResourceInput{
+		ResourceId: &ev.HostedZoneID,
+	}
+
+	for key, val := range ev.Tags {
+		req.AddTags = append(req.AddTags, &route53.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.ChangeTagsForResource(req)
+
+	return err
 }

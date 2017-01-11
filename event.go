@@ -12,6 +12,7 @@ type Event interface {
 	Create() error
 	Update() error
 	Delete() error
+	Find() error
 	Get() error
 	GetSubject() string
 	GetBody() []byte

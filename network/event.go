@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -32,29 +33,32 @@ var (
 
 // Event stores the network data
 type Event struct {
-	UUID               string `json:"_uuid"`
-	BatchID            string `json:"_batch_id"`
-	ProviderType       string `json:"_type"`
-	DatacenterRegion   string `json:"datacenter_region"`
-	AWSAccessKeyID     string `json:"aws_access_key_id"`
-	AWSSecretAccessKey string `json:"aws_secret_access_key"`
-	VPCID              string `json:"vpc_id"`
-	NetworkAWSID       string `json:"network_aws_id,omitempty"`
-	Name               string `json:"name"`
-	Subnet             string `json:"range"`
-	IsPublic           bool   `json:"is_public"`
-	AvailabilityZone   string `json:"availability_zone"`
-	ErrorMessage       string `json:"error,omitempty"`
-	Subject            string `json:"-"`
-	Body               []byte `json:"-"`
-	CryptoKey          string `json:"-"`
+	UUID               string            `json:"_uuid"`
+	BatchID            string            `json:"_batch_id"`
+	ProviderType       string            `json:"_type"`
+	DatacenterRegion   string            `json:"datacenter_region"`
+	AWSAccessKeyID     string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
+	VPCID              string            `json:"vpc_id"`
+	NetworkAWSID       string            `json:"network_aws_id,omitempty"`
+	Name               string            `json:"name"`
+	Subnet             string            `json:"range"`
+	IsPublic           bool              `json:"is_public"`
+	AvailabilityZone   string            `json:"availability_zone"`
+	Tags               map[string]string `json:"tags"`
+	ErrorMessage       string            `json:"error,omitempty"`
+	Subject            string            `json:"-"`
+	Body               []byte            `json:"-"`
+	CryptoKey          string            `json:"-"`
 }
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
-	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
 
-	return &n
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // Validate checks if all criteria are met
@@ -107,6 +111,11 @@ func (ev *Event) Error(err error) {
 	ev.Body, err = json.Marshal(ev)
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
@@ -155,7 +164,7 @@ func (ev *Event) Create() error {
 	ev.NetworkAWSID = *resp.Subnet.SubnetId
 	ev.AvailabilityZone = *resp.Subnet.AvailabilityZone
 
-	return nil
+	return ev.setTags()
 }
 
 // Update : Updates a nat object on aws
@@ -359,4 +368,23 @@ func (ev *Event) getNetworkInterfaces(svc *ec2.EC2, networkID string) (*ec2.Desc
 	}
 
 	return svc.DescribeNetworkInterfaces(&req)
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getEC2Client()
+
+	req := &ec2.CreateTagsInput{
+		Resources: []*string{&ev.NetworkAWSID},
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &ec2.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.CreateTags(req)
+
+	return err
 }

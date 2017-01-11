@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -32,39 +33,44 @@ var (
 
 // Event stores the network data
 type Event struct {
-	UUID                string    `json:"_uuid"`
-	BatchID             string    `json:"_batch_id"`
-	ProviderType        string    `json:"_type"`
-	DatacenterRegion    string    `json:"datacenter_region"`
-	AWSAccessKeyID      string    `json:"aws_access_key_id"`
-	AWSSecretAccessKey  string    `json:"aws_secret_access_key"`
-	VPCID               string    `json:"vpc_id"`
-	Name                string    `json:"name"`
-	Engine              string    `json:"engine"`
-	EngineVersion       *string   `json:"engine_version"`
-	Port                *int64    `json:"port"`
-	Endpoint            string    `json:"endpoint"`
-	AvailabilityZones   []*string `json:"availability_zones"`
-	SecurityGroups      []string  `json:"security_groups"`
-	SecurityGroupAWSIDs []*string `json:"security_group_aws_ids"`
-	Networks            []string  `json:"networks"`
-	NetworkAWSIDs       []*string `json:"network_aws_ids"`
-	DatabaseName        *string   `json:"database_name"`
-	DatabaseUsername    *string   `json:"database_username"`
-	DatabasePassword    *string   `json:"database_password"`
-	BackupRetention     *int64    `json:"backup_retention"`
-	BackupWindow        *string   `json:"backup_window"`
-	MaintenanceWindow   *string   `json:"maintenance_window"`
-	ReplicationSource   *string   `json:"replication_source"`
-	FinalSnapshot       bool      `json:"final_snapshot"`
-	ErrorMessage        string    `json:"error,omitempty"`
-	Subject             string    `json:"-"`
-	Body                []byte    `json:"-"`
-	CryptoKey           string    `json:"-"`
+	UUID                string            `json:"_uuid"`
+	BatchID             string            `json:"_batch_id"`
+	ProviderType        string            `json:"_type"`
+	DatacenterRegion    string            `json:"datacenter_region"`
+	AWSAccessKeyID      string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
+	VPCID               string            `json:"vpc_id"`
+	Name                string            `json:"name"`
+	Engine              string            `json:"engine"`
+	EngineVersion       *string           `json:"engine_version"`
+	Port                *int64            `json:"port"`
+	Endpoint            string            `json:"endpoint"`
+	AvailabilityZones   []*string         `json:"availability_zones"`
+	SecurityGroups      []string          `json:"security_groups"`
+	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
+	Networks            []string          `json:"networks"`
+	NetworkAWSIDs       []*string         `json:"network_aws_ids"`
+	DatabaseName        *string           `json:"database_name"`
+	DatabaseUsername    *string           `json:"database_username"`
+	DatabasePassword    *string           `json:"database_password"`
+	BackupRetention     *int64            `json:"backup_retention"`
+	BackupWindow        *string           `json:"backup_window"`
+	MaintenanceWindow   *string           `json:"maintenance_window"`
+	ReplicationSource   *string           `json:"replication_source"`
+	FinalSnapshot       bool              `json:"final_snapshot"`
+	Tags                map[string]string `json:"tags"`
+	ErrorMessage        string            `json:"error,omitempty"`
+	Subject             string            `json:"-"`
+	Body                []byte            `json:"-"`
+	CryptoKey           string            `json:"-"`
 }
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
+
 	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
@@ -116,6 +122,11 @@ func (ev *Event) Error(err error) {
 	ev.Body, err = json.Marshal(ev)
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
 	svc := ev.getRDSClient()
@@ -149,7 +160,7 @@ func (ev *Event) Create() error {
 
 	ev.Endpoint = *resp.DBCluster.Endpoint
 
-	return nil
+	return ev.setTags()
 }
 
 // Update : Updates a nat object on aws
@@ -173,8 +184,11 @@ func (ev *Event) Update() error {
 	}
 
 	_, err = svc.ModifyDBCluster(req)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return ev.setTags()
 }
 
 // Delete : Deletes a nat object on aws
@@ -226,6 +240,25 @@ func (ev *Event) getRDSClient() *rds.RDS {
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
 	})
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getRDSClient()
+
+	req := &rds.AddTagsToResourceInput{
+		ResourceName: &ev.Name,
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &rds.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.AddTagsToResource(req)
+
+	return err
 }
 
 func createSubnetGroup(ev *Event) (*string, error) {

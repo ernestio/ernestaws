@@ -27,6 +27,8 @@ func Handle(ev *Event) (string, []byte) {
 		err = n.Delete()
 	case "get":
 		err = n.Get()
+	case "find":
+		err = n.Find()
 	}
 
 	if err != nil {

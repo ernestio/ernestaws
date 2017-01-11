@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -34,33 +35,36 @@ var (
 
 // Event stores the nat data
 type Event struct {
-	UUID                   string   `json:"_uuid"`
-	BatchID                string   `json:"_batch_id"`
-	ProviderType           string   `json:"_type"`
-	VPCID                  string   `json:"vpc_id"`
-	DatacenterRegion       string   `json:"datacenter_region"`
-	AWSAccessKeyID         string   `json:"aws_access_key_id"`
-	AWSSecretAccessKey     string   `json:"aws_secret_access_key"`
-	NetworkAWSID           string   `json:"network_aws_id"`
-	PublicNetwork          string   `json:"public_network"`
-	PublicNetworkAWSID     string   `json:"public_network_aws_id"`
-	RoutedNetworks         []string `json:"routed_networks"`
-	RoutedNetworkAWSIDs    []string `json:"routed_networks_aws_ids"`
-	NatGatewayAWSID        string   `json:"nat_gateway_aws_id"`
-	NatGatewayAllocationID string   `json:"nat_gateway_allocation_id"`
-	NatGatewayAllocationIP string   `json:"nat_gateway_allocation_ip"`
-	InternetGatewayID      string   `json:"internet_gateway_id"`
-	ErrorMessage           string   `json:"error,omitempty"`
-	Subject                string   `json:"-"`
-	Body                   []byte   `json:"-"`
-	CryptoKey              string   `json:"-"`
+	UUID                   string            `json:"_uuid"`
+	BatchID                string            `json:"_batch_id"`
+	ProviderType           string            `json:"_type"`
+	VPCID                  string            `json:"vpc_id"`
+	DatacenterRegion       string            `json:"datacenter_region"`
+	AWSAccessKeyID         string            `json:"aws_access_key_id"`
+	AWSSecretAccessKey     string            `json:"aws_secret_access_key"`
+	NetworkAWSID           string            `json:"network_aws_id"`
+	PublicNetwork          string            `json:"public_network"`
+	PublicNetworkAWSID     string            `json:"public_network_aws_id"`
+	RoutedNetworks         []string          `json:"routed_networks"`
+	RoutedNetworkAWSIDs    []string          `json:"routed_networks_aws_ids"`
+	NatGatewayAWSID        string            `json:"nat_gateway_aws_id"`
+	NatGatewayAllocationID string            `json:"nat_gateway_allocation_id"`
+	NatGatewayAllocationIP string            `json:"nat_gateway_allocation_ip"`
+	InternetGatewayID      string            `json:"internet_gateway_id"`
+	Tags                   map[string]string `json:"tags"`
+	ErrorMessage           string            `json:"error,omitempty"`
+	Subject                string            `json:"-"`
+	Body                   []byte            `json:"-"`
+	CryptoKey              string            `json:"-"`
 }
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
-	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
 
-	return &n
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // GetBody : Gets the body for this event
@@ -131,6 +135,11 @@ func (ev *Event) Validate() error {
 	return nil
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
@@ -184,7 +193,7 @@ func (ev *Event) Create() error {
 		}
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Update : Updates a nat object on aws
@@ -207,7 +216,7 @@ func (ev *Event) Update() error {
 		}
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Delete : Deletes a nat object on aws
@@ -405,4 +414,23 @@ func (ev *Event) natGatewayByID(svc *ec2.EC2, id string) (*ec2.NatGateway, error
 	}
 
 	return resp.NatGateways[0], nil
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getEC2Client()
+
+	req := &ec2.CreateTagsInput{
+		Resources: []*string{&ev.NatGatewayAWSID},
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &ec2.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.CreateTags(req)
+
+	return err
 }

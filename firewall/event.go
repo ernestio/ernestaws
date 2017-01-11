@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -63,17 +64,20 @@ type Event struct {
 		Ingress []rule `json:"ingress"`
 		Egress  []rule `json:"egress"`
 	} `json:"rules"`
-	ErrorMessage string `json:"error,omitempty"`
-	Subject      string `json:"-"`
-	Body         []byte `json:"-"`
-	CryptoKey    string `json:"-"`
+	Tags         map[string]string `json:"tags"`
+	ErrorMessage string            `json:"error,omitempty"`
+	Subject      string            `json:"-"`
+	Body         []byte            `json:"-"`
+	CryptoKey    string            `json:"-"`
 }
 
 // New : Constructor
 func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
-	n := Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	if strings.Split(subject, ".")[1] == "find" {
+		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	}
 
-	return &n
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
 }
 
 // GetBody : Gets the body for this event
@@ -174,6 +178,11 @@ func (ev *Event) Validate() error {
 	return nil
 }
 
+// Find : Find an object on aws
+func (ev *Event) Find() error {
+	return errors.New(ev.Subject + " not supported")
+}
+
 // Create : Creates a nat object on aws
 func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
@@ -224,7 +233,7 @@ func (ev *Event) Create() error {
 		}
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Update : Updates a nat object on aws
@@ -299,7 +308,7 @@ func (ev *Event) Update() error {
 		}
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Delete : Deletes a nat object on aws
@@ -413,4 +422,23 @@ func (ev *Event) ruleExists(rule *ec2.IpPermission, ruleset []*ec2.IpPermission)
 		}
 	}
 	return false
+}
+
+func (ev *Event) setTags() error {
+	svc := ev.getEC2Client()
+
+	req := &ec2.CreateTagsInput{
+		Resources: []*string{&ev.SecurityGroupAWSID},
+	}
+
+	for key, val := range ev.Tags {
+		req.Tags = append(req.Tags, &ec2.Tag{
+			Key:   &key,
+			Value: &val,
+		})
+	}
+
+	_, err := svc.CreateTags(req)
+
+	return err
 }
