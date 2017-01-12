@@ -1,0 +1,15 @@
+machine:
+  environment:
+    ROOTPATH: /home/ubuntu/.go_workspace/src/github.com/ernestio
+
+dependencies:
+  pre:
+    - make dev-deps
+    - mkdir -p $ROOTPATH/
+    - rm -rf $ROOTPATH/ernestaws
+    - cp -R /home/ubuntu/ernestaws $ROOTPATH/ernestaws
+
+test:
+  override:
+    - cd $ROOTPATH/ernestaws && make test
+    - cd $ROOTPATH/ernestaws && make lint
