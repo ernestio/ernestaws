@@ -40,6 +40,7 @@ type Event struct {
 	AWSAccessKeyID      string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
 	VPCID               string            `json:"vpc_id"`
+	ARN                 string            `json:"arn"`
 	Name                string            `json:"name"`
 	Engine              string            `json:"engine"`
 	EngineVersion       *string           `json:"engine_version"`
@@ -158,6 +159,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
+	ev.ARN = *resp.DBCluster.DBClusterArn
 	ev.Endpoint = *resp.DBCluster.Endpoint
 
 	return ev.setTags()
@@ -246,7 +248,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getRDSClient()
 
 	req := &rds.AddTagsToResourceInput{
-		ResourceName: &ev.Name,
+		ResourceName: &ev.ARN,
 	}
 
 	for key, val := range ev.Tags {
