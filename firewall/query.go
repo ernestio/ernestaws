@@ -167,12 +167,25 @@ func mapSecurityGroupRules(perms []*ec2.IpPermission) []rule {
 
 	for _, p := range perms {
 		for _, r := range p.IpRanges {
-			rules = append(rules, rule{
-				IP:       *r.CidrIp,
-				Protocol: *p.IpProtocol,
-				FromPort: *p.FromPort,
-				ToPort:   *p.ToPort,
-			})
+			var xr rule
+
+			if r.CidrIp != nil {
+				xr.IP = *r.CidrIp
+			}
+
+			if p.IpProtocol != nil {
+				xr.Protocol = *p.IpProtocol
+			}
+
+			if p.FromPort != nil {
+				xr.FromPort = *p.FromPort
+			}
+
+			if p.ToPort != nil {
+				xr.ToPort = *p.ToPort
+			}
+
+			rules = append(rules, xr)
 		}
 	}
 

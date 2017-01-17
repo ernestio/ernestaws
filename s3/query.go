@@ -107,10 +107,7 @@ func (col *Collection) Find() error {
 	}
 
 	for _, b := range resp.Buckets {
-		tags, err := getBucketTagDescriptions(svc, b.Name)
-		if err != nil {
-			return err
-		}
+		tags, _ := getBucketTagDescriptions(svc, b.Name)
 
 		grants, err := getBucketPermissions(svc, b.Name)
 		if err != nil {

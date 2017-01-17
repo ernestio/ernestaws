@@ -158,12 +158,25 @@ func mapELBListeners(input []*elb.ListenerDescription) []Listener {
 	var listeners []Listener
 
 	for _, ld := range input {
-		listeners = append(listeners, Listener{
-			FromPort:  *ld.Listener.LoadBalancerPort,
-			ToPort:    *ld.Listener.InstancePort,
-			Protocol:  *ld.Listener.Protocol,
-			SSLCertID: *ld.Listener.SSLCertificateId,
-		})
+		var xl Listener
+
+		if ld.Listener.LoadBalancerPort != nil {
+			xl.FromPort = *ld.Listener.LoadBalancerPort
+		}
+
+		if ld.Listener.InstancePort != nil {
+			xl.ToPort = *ld.Listener.InstancePort
+		}
+
+		if ld.Listener.Protocol != nil {
+			xl.Protocol = *ld.Listener.Protocol
+		}
+
+		if ld.Listener.SSLCertificateId != nil {
+			xl.SSLCertID = *ld.Listener.SSLCertificateId
+		}
+
+		listeners = append(listeners, xl)
 	}
 
 	return listeners
