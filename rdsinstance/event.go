@@ -7,6 +7,7 @@ package rdsinstance
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 
@@ -41,6 +42,7 @@ type Event struct {
 	AWSAccessKeyID      string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
 	VPCID               string            `json:"vpc_id"`
+	ARN                 string            `json:"arn"`
 	Name                string            `json:"name"`
 	Size                string            `json:"size"`
 	Engine              string            `json:"engine"`
@@ -292,6 +294,8 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 		return err
 	}
 
+	ev.ARN = *resp.DBInstances[0].DBInstanceArn
+
 	if resp.DBInstances[0].Endpoint != nil {
 		if resp.DBInstances[0].Endpoint.Address != nil {
 			ev.Endpoint = *resp.DBInstances[0].Endpoint.Address
@@ -334,6 +338,8 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 		return err
 	}
 
+	ev.ARN = *resp.DBInstances[0].DBInstanceArn
+
 	if resp.DBInstances[0].Endpoint != nil {
 		if resp.DBInstances[0].Endpoint.Address != nil {
 			ev.Endpoint = *resp.DBInstances[0].Endpoint.Address
@@ -349,6 +355,14 @@ func (ev *Event) getRDSClient() *rds.RDS {
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
 	})
+}
+
+func (ev *Event) getInstanceARN() *string {
+	svc := ev.getRDSClient()
+
+	arn := fmt.Sprintf("arn:aws:rds:%s:<account>:db:<dbinstance name>", *svc.Client.Config.Region)
+
+	return &arn
 }
 
 func createSubnetGroup(ev *Event) (*string, error) {
