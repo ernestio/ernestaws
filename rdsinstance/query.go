@@ -101,11 +101,7 @@ func (col *Collection) Delete() error {
 func (col *Collection) Find() error {
 	svc := col.getRDSClient()
 
-	req := &rds.DescribeDBInstancesInput{
-		Filters: mapFilters(col.Tags),
-	}
-
-	resp, err := svc.DescribeDBInstances(req)
+	resp, err := svc.DescribeDBInstances(nil)
 	if err != nil {
 		return err
 	}
@@ -116,7 +112,10 @@ func (col *Collection) Find() error {
 			return err
 		}
 
-		col.Results = append(col.Results, toEvent(i, tags))
+		e := toEvent(i, tags)
+		if tagsMatch(col.Tags, e.Tags) {
+			col.Results = append(col.Results, e)
+		}
 	}
 
 	return nil
@@ -128,6 +127,16 @@ func (col *Collection) getRDSClient() *rds.RDS {
 		Region:      aws.String(col.DatacenterRegion),
 		Credentials: creds,
 	})
+}
+
+func tagsMatch(qt, rt map[string]string) bool {
+	for k, v := range qt {
+		if rt[k] != v {
+			return false
+		}
+	}
+
+	return true
 }
 
 func mapFilters(tags map[string]string) []*rds.Filter {
