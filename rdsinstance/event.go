@@ -7,7 +7,6 @@ package rdsinstance
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"strings"
 
@@ -357,14 +356,6 @@ func (ev *Event) getRDSClient() *rds.RDS {
 	})
 }
 
-func (ev *Event) getInstanceARN() *string {
-	svc := ev.getRDSClient()
-
-	arn := fmt.Sprintf("arn:aws:rds:%s:<account>:db:<dbinstance name>", *svc.Client.Config.Region)
-
-	return &arn
-}
-
 func createSubnetGroup(ev *Event) (*string, error) {
 	svc := ev.getRDSClient()
 
@@ -417,7 +408,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getRDSClient()
 
 	req := &rds.AddTagsToResourceInput{
-		ResourceName: &ev.Name,
+		ResourceName: &ev.ARN,
 	}
 
 	for key, val := range ev.Tags {

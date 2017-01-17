@@ -159,6 +159,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
+	ev.ARN = *resp.DBCluster.DBClusterArn
 	ev.Endpoint = *resp.DBCluster.Endpoint
 
 	return ev.setTags()
@@ -247,7 +248,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getRDSClient()
 
 	req := &rds.AddTagsToResourceInput{
-		ResourceName: &ev.Name,
+		ResourceName: &ev.ARN,
 	}
 
 	for key, val := range ev.Tags {
