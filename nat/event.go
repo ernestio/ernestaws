@@ -193,7 +193,7 @@ func (ev *Event) Create() error {
 		}
 	}
 
-	return ev.setTags()
+	return nil
 }
 
 // Update : Updates a nat object on aws
@@ -216,7 +216,7 @@ func (ev *Event) Update() error {
 		}
 	}
 
-	return ev.setTags()
+	return nil
 }
 
 // Delete : Deletes a nat object on aws
@@ -414,23 +414,4 @@ func (ev *Event) natGatewayByID(svc *ec2.EC2, id string) (*ec2.NatGateway, error
 	}
 
 	return resp.NatGateways[0], nil
-}
-
-func (ev *Event) setTags() error {
-	svc := ev.getEC2Client()
-
-	req := &ec2.CreateTagsInput{
-		Resources: []*string{&ev.NatGatewayAWSID},
-	}
-
-	for key, val := range ev.Tags {
-		req.Tags = append(req.Tags, &ec2.Tag{
-			Key:   &key,
-			Value: &val,
-		})
-	}
-
-	_, err := svc.CreateTags(req)
-
-	return err
 }

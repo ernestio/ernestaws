@@ -101,22 +101,14 @@ func (col *Collection) Delete() error {
 func (col *Collection) Find() error {
 	svc := col.getEC2Client()
 
-	req := &ec2.DescribeNatGatewaysInput{
-		Filter: mapFilters(col.Tags),
-	}
-
-	resp, err := svc.DescribeNatGateways(req)
+	resp, err := svc.DescribeNatGateways(nil)
 	if err != nil {
 		return err
 	}
 
+	// As tags aren't supported on nat gw's, we append all items to be filtered later.
 	for _, ng := range resp.NatGateways {
-		tags, err := getGatewayTagDescriptions(svc, ng.NatGatewayId)
-		if err != nil {
-			return err
-		}
-
-		col.Results = append(col.Results, toEvent(ng, tags))
+		col.Results = append(col.Results, toEvent(ng))
 	}
 
 	return nil
@@ -153,19 +145,6 @@ func mapEC2Tags(input []*ec2.TagDescription) map[string]string {
 	return t
 }
 
-func getGatewayTagDescriptions(svc *ec2.EC2, id *string) ([]*ec2.TagDescription, error) {
-	var req *ec2.DescribeTagsInput
-
-	req.Filters = append(req.Filters, &ec2.Filter{
-		Name:   aws.String("resource-id"),
-		Values: []*string{id},
-	})
-
-	resp, err := svc.DescribeTags(req)
-
-	return resp.Tags, err
-}
-
 func getPublicAllocation(addresses []*ec2.NatGatewayAddress) (string, string) {
 	for _, a := range addresses {
 		if a.PublicIp != nil {
@@ -176,7 +155,7 @@ func getPublicAllocation(addresses []*ec2.NatGatewayAddress) (string, string) {
 }
 
 // ToEvent converts an ec2 nat gateway object to an ernest event
-func toEvent(ng *ec2.NatGateway, tags []*ec2.TagDescription) *Event {
+func toEvent(ng *ec2.NatGateway) *Event {
 	id, ip := getPublicAllocation(ng.NatGatewayAddresses)
 
 	e := &Event{
@@ -187,7 +166,6 @@ func toEvent(ng *ec2.NatGateway, tags []*ec2.TagDescription) *Event {
 		NatGatewayAllocationIP: ip,
 		//RoutedNetworksAWSIDs
 		//InternetGatewayID
-		Tags: mapEC2Tags(tags),
 	}
 	return e
 }
