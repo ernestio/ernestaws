@@ -160,11 +160,12 @@ func getZoneRecords(svc *route53.Route53, id *string) ([]*route53.ResourceRecord
 }
 
 func getZoneTagDescriptions(svc *route53.Route53, id *string) ([]*route53.Tag, error) {
-	treq := &route53.ListTagsForResourceInput{
-		ResourceId: id,
+	req := &route53.ListTagsForResourceInput{
+		ResourceId:   id,
+		ResourceType: aws.String("hostedzone"),
 	}
 
-	resp, err := svc.ListTagsForResource(treq)
+	resp, err := svc.ListTagsForResource(req)
 	if err != nil {
 		return []*route53.Tag{}, err
 	}
