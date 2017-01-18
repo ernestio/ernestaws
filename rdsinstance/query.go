@@ -107,7 +107,7 @@ func (col *Collection) Find() error {
 	}
 
 	for _, i := range resp.DBInstances {
-		tags, err := getInstanceTagDescriptions(svc, i.DBInstanceIdentifier)
+		tags, err := getInstanceTagDescriptions(svc, i.DBInstanceArn)
 		if err != nil {
 			return err
 		}
@@ -195,6 +195,7 @@ func mapRDSSecurityGroups(sgroups []*rds.VpcSecurityGroupMembership) []*string {
 // ToEvent converts an rds instance object to an ernest event
 func toEvent(i *rds.DBInstance, tags []*rds.Tag) *Event {
 	e := &Event{
+		ARN:                 *i.DBInstanceArn,
 		Name:                *i.DBClusterIdentifier,
 		Endpoint:            *i.Endpoint.Address,
 		Port:                i.Endpoint.Port,

@@ -107,7 +107,7 @@ func (col *Collection) Find() error {
 	}
 
 	for _, c := range resp.DBClusters {
-		tags, err := getClusterTagDescriptions(svc, c.DBClusterIdentifier)
+		tags, err := getClusterTagDescriptions(svc, c.DBClusterArn)
 		if err != nil {
 			return err
 		}
@@ -211,6 +211,7 @@ func mapRDSSecurityGroups(sgroups []*rds.VpcSecurityGroupMembership) []*string {
 // ToEvent converts an rds cluster object to an ernest event
 func toEvent(c *rds.DBCluster, sg *rds.DBSubnetGroup, tags []*rds.Tag) *Event {
 	e := &Event{
+		ARN:                 *c.DBClusterArn,
 		Name:                *c.DBClusterIdentifier,
 		Engine:              *c.Engine,
 		EngineVersion:       c.EngineVersion,
