@@ -151,8 +151,11 @@ func getZoneRecords(svc *route53.Route53, id *string) ([]*route53.ResourceRecord
 	}
 
 	resp, err := svc.ListResourceRecordSets(zreq)
+	if err != nil {
+		return []*route53.ResourceRecordSet{}, err
+	}
 
-	return resp.ResourceRecordSets, err
+	return resp.ResourceRecordSets, nil
 }
 
 func getZoneTagDescriptions(svc *route53.Route53, id *string) ([]*route53.Tag, error) {
@@ -161,8 +164,11 @@ func getZoneTagDescriptions(svc *route53.Route53, id *string) ([]*route53.Tag, e
 	}
 
 	resp, err := svc.ListTagsForResource(treq)
+	if err != nil {
+		return []*route53.Tag{}, err
+	}
 
-	return resp.ResourceTagSet.Tags, err
+	return resp.ResourceTagSet.Tags, nil
 }
 
 func mapRoute53Tags(input []*route53.Tag) map[string]string {
