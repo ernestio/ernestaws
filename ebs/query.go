@@ -20,6 +20,7 @@ type Collection struct {
 	UUID               string            `json:"_uuid"`
 	BatchID            string            `json:"_batch_id"`
 	ProviderType       string            `json:"_type"`
+	Service            string            `json:"service"`
 	AWSAccessKeyID     string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
 	DatacenterRegion   string            `json:"datacenter_region"`
