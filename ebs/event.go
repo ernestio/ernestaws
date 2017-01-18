@@ -205,7 +205,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
 	req := &ec2.CreateTagsInput{
-		Resources: []*string{&ev.VolumeAWSID},
+		Resources: []*string{ev.VolumeAWSID},
 	}
 
 	for key, val := range ev.Tags {
