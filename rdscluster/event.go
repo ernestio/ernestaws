@@ -40,12 +40,12 @@ type Event struct {
 	AWSAccessKeyID      string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
 	VPCID               string            `json:"vpc_id"`
-	ARN                 string            `json:"arn"`
-	Name                string            `json:"name"`
-	Engine              string            `json:"engine"`
+	ARN                 *string           `json:"arn"`
+	Name                *string           `json:"name"`
+	Engine              *string           `json:"engine"`
 	EngineVersion       *string           `json:"engine_version"`
 	Port                *int64            `json:"port"`
-	Endpoint            string            `json:"endpoint"`
+	Endpoint            *string           `json:"endpoint"`
 	AvailabilityZones   []*string         `json:"availability_zones"`
 	SecurityGroups      []string          `json:"security_groups"`
 	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
@@ -58,7 +58,7 @@ type Event struct {
 	BackupWindow        *string           `json:"backup_window"`
 	MaintenanceWindow   *string           `json:"maintenance_window"`
 	ReplicationSource   *string           `json:"replication_source"`
-	FinalSnapshot       bool              `json:"final_snapshot"`
+	FinalSnapshot       *bool             `json:"final_snapshot"`
 	Tags                map[string]string `json:"tags"`
 	ErrorMessage        string            `json:"error,omitempty"`
 	Subject             string            `json:"-"`
@@ -89,11 +89,11 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterCredentialsInvalid
 	}
 
-	if ev.Name == "" {
+	if ev.Name == nil {
 		return ErrRDSClusterNameInvalid
 	}
 
-	if ev.Engine == "" {
+	if ev.Engine == nil {
 		return ErrRDSClusterEngineTypeInvalid
 	}
 
@@ -138,8 +138,8 @@ func (ev *Event) Create() error {
 	}
 
 	req := &rds.CreateDBClusterInput{
-		DBClusterIdentifier:         aws.String(ev.Name),
-		Engine:                      aws.String(ev.Engine),
+		DBClusterIdentifier:         ev.Name,
+		Engine:                      ev.Engine,
 		EngineVersion:               ev.EngineVersion,
 		Port:                        ev.Port,
 		AvailabilityZones:           ev.AvailabilityZones,
@@ -159,8 +159,8 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	ev.ARN = *resp.DBCluster.DBClusterArn
-	ev.Endpoint = *resp.DBCluster.Endpoint
+	ev.ARN = resp.DBCluster.DBClusterArn
+	ev.Endpoint = resp.DBCluster.Endpoint
 
 	return ev.setTags()
 }
@@ -175,7 +175,7 @@ func (ev *Event) Update() error {
 	}
 
 	req := &rds.ModifyDBClusterInput{
-		DBClusterIdentifier:        aws.String(ev.Name),
+		DBClusterIdentifier:        ev.Name,
 		Port:                       ev.Port,
 		MasterUserPassword:         ev.DatabasePassword,
 		BackupRetentionPeriod:      ev.BackupRetention,
@@ -198,11 +198,11 @@ func (ev *Event) Delete() error {
 	svc := ev.getRDSClient()
 
 	req := &rds.DeleteDBClusterInput{
-		DBClusterIdentifier: aws.String(ev.Name),
+		DBClusterIdentifier: ev.Name,
 	}
 
-	if ev.FinalSnapshot {
-		req.FinalDBSnapshotIdentifier = aws.String(ev.Name + "-Final-Snapshot")
+	if *ev.FinalSnapshot {
+		req.FinalDBSnapshotIdentifier = aws.String(*ev.Name + "-Final-Snapshot")
 	} else {
 		req.SkipFinalSnapshot = aws.Bool(true)
 	}
@@ -248,7 +248,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getRDSClient()
 
 	req := &rds.AddTagsToResourceInput{
-		ResourceName: &ev.ARN,
+		ResourceName: ev.ARN,
 	}
 
 	for key, val := range ev.Tags {
@@ -271,8 +271,8 @@ func createSubnetGroup(ev *Event) (*string, error) {
 	}
 
 	req := &rds.CreateDBSubnetGroupInput{
-		DBSubnetGroupDescription: aws.String(ev.Name + "-sg"),
-		DBSubnetGroupName:        aws.String(ev.Name + "-sg"),
+		DBSubnetGroupDescription: aws.String(*ev.Name + "-sg"),
+		DBSubnetGroupName:        aws.String(*ev.Name + "-sg"),
 		SubnetIds:                ev.NetworkAWSIDs,
 	}
 
@@ -289,8 +289,8 @@ func updateSubnetGroup(ev *Event) (*string, error) {
 	}
 
 	req := &rds.ModifyDBSubnetGroupInput{
-		DBSubnetGroupName:        aws.String(ev.Name + "-sg"),
-		DBSubnetGroupDescription: aws.String(ev.Name + "-sg"),
+		DBSubnetGroupName:        aws.String(*ev.Name + "-sg"),
+		DBSubnetGroupDescription: aws.String(*ev.Name + "-sg"),
 		SubnetIds:                ev.NetworkAWSIDs,
 	}
 
@@ -303,7 +303,7 @@ func deleteSubnetGroup(ev *Event) error {
 	svc := ev.getRDSClient()
 
 	req := &rds.DeleteDBSubnetGroupInput{
-		DBSubnetGroupName: aws.String(ev.Name + "-sg"),
+		DBSubnetGroupName: aws.String(*ev.Name + "-sg"),
 	}
 
 	_, err := svc.DeleteDBSubnetGroup(req)
@@ -315,7 +315,7 @@ func waitUntilClusterDeleted(ev *Event) {
 	svc := ev.getRDSClient()
 
 	req := &rds.DescribeDBClustersInput{
-		DBClusterIdentifier: aws.String(ev.Name),
+		DBClusterIdentifier: ev.Name,
 	}
 
 	for {

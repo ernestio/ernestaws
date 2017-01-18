@@ -193,18 +193,18 @@ func mapS3Grantees(grantees []*s3.Grant) []Grantee {
 
 	for _, g := range grantees {
 		grantee := Grantee{
-			ID:          *g.Grantee.ID,
-			Type:        *g.Grantee.Type,
-			Permissions: *g.Permission,
+			ID:          g.Grantee.ID,
+			Type:        g.Grantee.Type,
+			Permissions: g.Permission,
 		}
 
 		switch *g.Grantee.Type {
 		case "id":
-			grantee.ID = *g.Grantee.ID
+			grantee.ID = g.Grantee.ID
 		case "emailaddress":
-			grantee.ID = *g.Grantee.EmailAddress
+			grantee.ID = g.Grantee.EmailAddress
 		case "uri":
-			grantee.ID = *g.Grantee.URI
+			grantee.ID = g.Grantee.URI
 		}
 
 		gs = append(gs, grantee)
@@ -216,9 +216,9 @@ func mapS3Grantees(grantees []*s3.Grant) []Grantee {
 // ToEvent converts an s3 bucket object to an ernest event
 func toEvent(b *s3.Bucket, grants []*s3.Grant, location *string, tags []*s3.Tag) *Event {
 	e := &Event{
-		Name:           *b.Name,
+		Name:           b.Name,
 		Grantees:       mapS3Grantees(grants),
-		BucketLocation: *location,
+		BucketLocation: location,
 		// ACL ???
 		// BucketURI
 		Tags: mapS3Tags(tags),

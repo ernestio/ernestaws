@@ -42,15 +42,15 @@ type Event struct {
 	DatacenterRegion       string            `json:"datacenter_region"`
 	AWSAccessKeyID         string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey     string            `json:"aws_secret_access_key"`
-	NetworkAWSID           string            `json:"network_aws_id"`
-	PublicNetwork          string            `json:"public_network"`
-	PublicNetworkAWSID     string            `json:"public_network_aws_id"`
+	NetworkAWSID           *string           `json:"network_aws_id"`
+	PublicNetwork          *string           `json:"public_network"`
+	PublicNetworkAWSID     *string           `json:"public_network_aws_id"`
 	RoutedNetworks         []string          `json:"routed_networks"`
-	RoutedNetworkAWSIDs    []string          `json:"routed_networks_aws_ids"`
-	NatGatewayAWSID        string            `json:"nat_gateway_aws_id"`
-	NatGatewayAllocationID string            `json:"nat_gateway_allocation_id"`
-	NatGatewayAllocationIP string            `json:"nat_gateway_allocation_ip"`
-	InternetGatewayID      string            `json:"internet_gateway_id"`
+	RoutedNetworkAWSIDs    []*string         `json:"routed_networks_aws_ids"`
+	NatGatewayAWSID        *string           `json:"nat_gateway_aws_id"`
+	NatGatewayAllocationID *string           `json:"nat_gateway_allocation_id"`
+	NatGatewayAllocationIP *string           `json:"nat_gateway_allocation_ip"`
+	InternetGatewayID      *string           `json:"internet_gateway_id"`
 	Tags                   map[string]string `json:"tags"`
 	ErrorMessage           string            `json:"error,omitempty"`
 	Subject                string            `json:"-"`
@@ -119,11 +119,11 @@ func (ev *Event) Validate() error {
 	}
 
 	if ev.Subject == "nat.delete.aws" {
-		if ev.NatGatewayAWSID == "" {
+		if ev.NatGatewayAWSID == nil {
 			return ErrNatGatewayIDInvalid
 		}
 	} else {
-		if ev.PublicNetworkAWSID == "" {
+		if ev.PublicNetworkAWSID == nil {
 			return ErrNetworkIDInvalid
 		}
 
@@ -150,8 +150,8 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	ev.NatGatewayAllocationID = *resp.AllocationId
-	ev.NatGatewayAllocationIP = *resp.PublicIp
+	ev.NatGatewayAllocationID = resp.AllocationId
+	ev.NatGatewayAllocationIP = resp.PublicIp
 
 	// Create Internet Gateway
 	ev.InternetGatewayID, err = ev.createInternetGateway(svc)
@@ -161,8 +161,8 @@ func (ev *Event) Create() error {
 
 	// Create Nat Gateway
 	req := ec2.CreateNatGatewayInput{
-		AllocationId: aws.String(ev.NatGatewayAllocationID),
-		SubnetId:     aws.String(ev.PublicNetworkAWSID),
+		AllocationId: ev.NatGatewayAllocationID,
+		SubnetId:     ev.PublicNetworkAWSID,
 	}
 
 	gwresp, err := svc.CreateNatGateway(&req)
@@ -170,7 +170,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	ev.NatGatewayAWSID = *gwresp.NatGateway.NatGatewayId
+	ev.NatGatewayAWSID = gwresp.NatGateway.NatGatewayId
 
 	waitnat := ec2.DescribeNatGatewaysInput{
 		NatGatewayIds: []*string{gwresp.NatGateway.NatGatewayId},
@@ -187,7 +187,7 @@ func (ev *Event) Create() error {
 			return err
 		}
 
-		err = ev.createNatGatewayRoutes(svc, rt, *gwresp.NatGateway.NatGatewayId)
+		err = ev.createNatGatewayRoutes(svc, rt, gwresp.NatGateway.NatGatewayId)
 		if err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func (ev *Event) Delete() error {
 	svc := ev.getEC2Client()
 
 	req := ec2.DeleteNatGatewayInput{
-		NatGatewayId: aws.String(ev.NatGatewayAWSID),
+		NatGatewayId: ev.NatGatewayAWSID,
 	}
 
 	_, err := svc.DeleteNatGateway(&req)
@@ -237,7 +237,7 @@ func (ev *Event) Delete() error {
 	}
 
 	rreq := &ec2.ReleaseAddressInput{
-		AllocationId: aws.String(ev.NatGatewayAllocationID),
+		AllocationId: ev.NatGatewayAllocationID,
 	}
 
 	_, err = svc.ReleaseAddress(rreq)
@@ -282,11 +282,11 @@ func (ev *Event) internetGatewayByVPCID(svc *ec2.EC2, vpc string) (*ec2.Internet
 	return resp.InternetGateways[0], nil
 }
 
-func (ev *Event) routingTableBySubnetID(svc *ec2.EC2, subnet string) (*ec2.RouteTable, error) {
+func (ev *Event) routingTableBySubnetID(svc *ec2.EC2, subnet *string) (*ec2.RouteTable, error) {
 	f := []*ec2.Filter{
 		&ec2.Filter{
 			Name:   aws.String("association.subnet-id"),
-			Values: []*string{aws.String(subnet)},
+			Values: []*string{subnet},
 		},
 	}
 
@@ -306,19 +306,19 @@ func (ev *Event) routingTableBySubnetID(svc *ec2.EC2, subnet string) (*ec2.Route
 	return resp.RouteTables[0], nil
 }
 
-func (ev *Event) createInternetGateway(svc *ec2.EC2) (string, error) {
+func (ev *Event) createInternetGateway(svc *ec2.EC2) (*string, error) {
 	ig, err := ev.internetGatewayByVPCID(svc, ev.VPCID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if ig != nil {
-		return *ig.InternetGatewayId, nil
+		return ig.InternetGatewayId, nil
 	}
 
 	resp, err := svc.CreateInternetGateway(nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	req := ec2.AttachInternetGatewayInput{
@@ -328,13 +328,13 @@ func (ev *Event) createInternetGateway(svc *ec2.EC2) (string, error) {
 
 	_, err = svc.AttachInternetGateway(&req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return *resp.InternetGateway.InternetGatewayId, nil
+	return resp.InternetGateway.InternetGatewayId, nil
 }
 
-func (ev *Event) createRouteTable(svc *ec2.EC2, subnet string) (*ec2.RouteTable, error) {
+func (ev *Event) createRouteTable(svc *ec2.EC2, subnet *string) (*ec2.RouteTable, error) {
 	rt, err := ev.routingTableBySubnetID(svc, subnet)
 	if err != nil {
 		return nil, err
@@ -355,7 +355,7 @@ func (ev *Event) createRouteTable(svc *ec2.EC2, subnet string) (*ec2.RouteTable,
 
 	acreq := ec2.AssociateRouteTableInput{
 		RouteTableId: resp.RouteTable.RouteTableId,
-		SubnetId:     aws.String(subnet),
+		SubnetId:     subnet,
 	}
 
 	_, err = svc.AssociateRouteTable(&acreq)
@@ -366,11 +366,11 @@ func (ev *Event) createRouteTable(svc *ec2.EC2, subnet string) (*ec2.RouteTable,
 	return resp.RouteTable, nil
 }
 
-func (ev *Event) createNatGatewayRoutes(svc *ec2.EC2, rt *ec2.RouteTable, gwID string) error {
+func (ev *Event) createNatGatewayRoutes(svc *ec2.EC2, rt *ec2.RouteTable, gwID *string) error {
 	req := ec2.CreateRouteInput{
 		RouteTableId:         rt.RouteTableId,
 		DestinationCidrBlock: aws.String("0.0.0.0/0"),
-		NatGatewayId:         aws.String(gwID),
+		NatGatewayId:         gwID,
 	}
 
 	_, err := svc.CreateRoute(&req)
@@ -381,7 +381,7 @@ func (ev *Event) createNatGatewayRoutes(svc *ec2.EC2, rt *ec2.RouteTable, gwID s
 	return nil
 }
 
-func (ev *Event) isNatGatewayDeleted(svc *ec2.EC2, id string) bool {
+func (ev *Event) isNatGatewayDeleted(svc *ec2.EC2, id *string) bool {
 	gw, _ := ev.natGatewayByID(svc, id)
 	if *gw.State == ec2.NatGatewayStateDeleted {
 		return true
@@ -393,16 +393,16 @@ func (ev *Event) isNatGatewayDeleted(svc *ec2.EC2, id string) bool {
 func (ev *Event) routeTableIsConfigured(rt *ec2.RouteTable) bool {
 	gwID := ev.NatGatewayAWSID
 	for _, route := range rt.Routes {
-		if *route.DestinationCidrBlock == "0.0.0.0/0" && *route.NatGatewayId == gwID {
+		if *route.DestinationCidrBlock == "0.0.0.0/0" && *route.NatGatewayId == *gwID {
 			return true
 		}
 	}
 	return false
 }
 
-func (ev *Event) natGatewayByID(svc *ec2.EC2, id string) (*ec2.NatGateway, error) {
+func (ev *Event) natGatewayByID(svc *ec2.EC2, id *string) (*ec2.NatGateway, error) {
 	req := ec2.DescribeNatGatewaysInput{
-		NatGatewayIds: []*string{aws.String(id)},
+		NatGatewayIds: []*string{id},
 	}
 	resp, err := svc.DescribeNatGateways(&req)
 	if err != nil {

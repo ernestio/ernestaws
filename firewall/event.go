@@ -42,24 +42,24 @@ var (
 )
 
 type rule struct {
-	IP       string `json:"ip"`
-	FromPort int64  `json:"from_port"`
-	ToPort   int64  `json:"to_port"`
-	Protocol string `json:"protocol"`
+	IP       *string `json:"ip"`
+	FromPort *int64  `json:"from_port"`
+	ToPort   *int64  `json:"to_port"`
+	Protocol *string `json:"protocol"`
 }
 
 // Event stores the template data
 type Event struct {
-	UUID               string `json:"_uuid"`
-	BatchID            string `json:"_batch_id"`
-	ProviderType       string `json:"_type"`
-	VPCID              string `json:"vpc_id"`
-	DatacenterRegion   string `json:"datacenter_region"`
-	AWSAccessKeyID     string `json:"aws_access_key_id"`
-	AWSSecretAccessKey string `json:"aws_secret_access_key"`
-	NetworkAWSID       string `json:"network_aws_id"`
-	SecurityGroupAWSID string `json:"security_group_aws_id,omitempty"`
-	SecurityGroupName  string `json:"name"`
+	UUID               string  `json:"_uuid"`
+	BatchID            string  `json:"_batch_id"`
+	ProviderType       string  `json:"_type"`
+	VPCID              string  `json:"vpc_id"`
+	DatacenterRegion   string  `json:"datacenter_region"`
+	AWSAccessKeyID     string  `json:"aws_access_key_id"`
+	AWSSecretAccessKey string  `json:"aws_secret_access_key"`
+	NetworkAWSID       *string `json:"network_aws_id"`
+	SecurityGroupAWSID *string `json:"security_group_aws_id,omitempty"`
+	SecurityGroupName  *string `json:"name"`
 	SecurityGroupRules struct {
 		Ingress []rule `json:"ingress"`
 		Egress  []rule `json:"egress"`
@@ -132,12 +132,12 @@ func (ev *Event) Validate() error {
 	}
 
 	if ev.Subject != "firewall.create.aws" {
-		if ev.SecurityGroupAWSID == "" {
+		if ev.SecurityGroupAWSID == nil {
 			return ErrSGAWSIDInvalid
 		}
 	}
 	if ev.Subject != "firewall.delete.aws" {
-		if ev.SecurityGroupName == "" {
+		if ev.SecurityGroupName == nil {
 			return ErrSGNameInvalid
 		}
 
@@ -145,31 +145,31 @@ func (ev *Event) Validate() error {
 			return ErrSGRulesInvalid
 		}
 		for _, rule := range ev.SecurityGroupRules.Ingress {
-			if rule.IP == "" {
+			if rule.IP == nil {
 				return ErrSGRuleIPInvalid
 			}
-			if rule.Protocol == "" {
+			if rule.Protocol == nil {
 				return ErrSGRuleProtocolInvalid
 			}
-			if rule.FromPort < 0 || rule.FromPort > 65535 {
+			if *rule.FromPort < 0 || *rule.FromPort > 65535 {
 				return ErrSGRuleFromPortInvalid
 			}
-			if rule.ToPort < 0 || rule.ToPort > 65535 {
+			if *rule.ToPort < 0 || *rule.ToPort > 65535 {
 				return ErrSGRuleToPortInvalid
 			}
 		}
 
 		for _, rule := range ev.SecurityGroupRules.Egress {
-			if rule.IP == "" {
+			if rule.IP == nil {
 				return ErrSGRuleIPInvalid
 			}
-			if rule.Protocol == "" {
+			if rule.Protocol == nil {
 				return ErrSGRuleProtocolInvalid
 			}
-			if rule.FromPort < 0 || rule.FromPort > 65535 {
+			if *rule.FromPort < 0 || *rule.FromPort > 65535 {
 				return ErrSGRuleFromPortInvalid
 			}
-			if rule.ToPort < 0 || rule.ToPort > 65535 {
+			if *rule.ToPort < 0 || *rule.ToPort > 65535 {
 				return ErrSGRuleToPortInvalid
 			}
 		}
@@ -190,8 +190,8 @@ func (ev *Event) Create() error {
 	// Create SecurityGroup
 	req := ec2.CreateSecurityGroupInput{
 		VpcId:       aws.String(ev.VPCID),
-		GroupName:   aws.String(ev.SecurityGroupName),
-		Description: aws.String("Rules for: " + ev.SecurityGroupName),
+		GroupName:   ev.SecurityGroupName,
+		Description: ev.SecurityGroupName,
 	}
 
 	resp, err := svc.CreateSecurityGroup(&req)
@@ -199,7 +199,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	ev.SecurityGroupAWSID = *resp.GroupId
+	ev.SecurityGroupAWSID = resp.GroupId
 
 	// Remove default rule
 	err = ev.removeDefaultRule(svc, resp.GroupId)
@@ -210,7 +210,7 @@ func (ev *Event) Create() error {
 	// Authorize Ingress
 	if len(ev.SecurityGroupRules.Ingress) > 0 {
 		iReq := ec2.AuthorizeSecurityGroupIngressInput{
-			GroupId:       aws.String(ev.SecurityGroupAWSID),
+			GroupId:       ev.SecurityGroupAWSID,
 			IpPermissions: ev.buildPermissions(ev.SecurityGroupRules.Ingress),
 		}
 
@@ -223,7 +223,7 @@ func (ev *Event) Create() error {
 	// Authorize Egress
 	if len(ev.SecurityGroupRules.Egress) > 0 {
 		eReq := ec2.AuthorizeSecurityGroupEgressInput{
-			GroupId:       aws.String(ev.SecurityGroupAWSID),
+			GroupId:       ev.SecurityGroupAWSID,
 			IpPermissions: ev.buildPermissions(ev.SecurityGroupRules.Egress),
 		}
 
@@ -260,7 +260,7 @@ func (ev *Event) Update() error {
 	// Revoke Ingress
 	if len(revokeIngressRules) > 0 {
 		iReq := ec2.RevokeSecurityGroupIngressInput{
-			GroupId:       aws.String(ev.SecurityGroupAWSID),
+			GroupId:       ev.SecurityGroupAWSID,
 			IpPermissions: revokeIngressRules,
 		}
 
@@ -273,7 +273,7 @@ func (ev *Event) Update() error {
 	// Revoke Egress
 	if len(revokeEgressRules) > 0 {
 		eReq := ec2.RevokeSecurityGroupEgressInput{
-			GroupId:       aws.String(ev.SecurityGroupAWSID),
+			GroupId:       ev.SecurityGroupAWSID,
 			IpPermissions: revokeEgressRules,
 		}
 		_, err := svc.RevokeSecurityGroupEgress(&eReq)
@@ -285,7 +285,7 @@ func (ev *Event) Update() error {
 	// Authorize Ingress
 	if len(newIngressRules) > 0 {
 		iReq := ec2.AuthorizeSecurityGroupIngressInput{
-			GroupId:       aws.String(ev.SecurityGroupAWSID),
+			GroupId:       ev.SecurityGroupAWSID,
 			IpPermissions: newIngressRules,
 		}
 
@@ -298,7 +298,7 @@ func (ev *Event) Update() error {
 	// Authorize Egress
 	if len(newEgressRules) > 0 {
 		eReq := ec2.AuthorizeSecurityGroupEgressInput{
-			GroupId:       aws.String(ev.SecurityGroupAWSID),
+			GroupId:       ev.SecurityGroupAWSID,
 			IpPermissions: newEgressRules,
 		}
 
@@ -316,7 +316,7 @@ func (ev *Event) Delete() error {
 	svc := ev.getEC2Client()
 
 	req := ec2.DeleteSecurityGroupInput{
-		GroupId: aws.String(ev.SecurityGroupAWSID),
+		GroupId: ev.SecurityGroupAWSID,
 	}
 
 	_, err := svc.DeleteSecurityGroup(&req)
@@ -360,11 +360,11 @@ func (ev *Event) removeDefaultRule(svc *ec2.EC2, sgID *string) error {
 	return err
 }
 
-func (ev *Event) securityGroupByID(svc *ec2.EC2, id string) (*ec2.SecurityGroup, error) {
+func (ev *Event) securityGroupByID(svc *ec2.EC2, id *string) (*ec2.SecurityGroup, error) {
 	f := []*ec2.Filter{
 		&ec2.Filter{
 			Name:   aws.String("group-id"),
-			Values: []*string{aws.String(id)},
+			Values: []*string{id},
 		},
 	}
 
@@ -385,11 +385,11 @@ func (ev *Event) buildPermissions(rules []rule) []*ec2.IpPermission {
 	var perms []*ec2.IpPermission
 	for _, rule := range rules {
 		p := ec2.IpPermission{
-			FromPort:   aws.Int64(rule.FromPort),
-			ToPort:     aws.Int64(rule.ToPort),
-			IpProtocol: aws.String(rule.Protocol),
+			FromPort:   rule.FromPort,
+			ToPort:     rule.ToPort,
+			IpProtocol: rule.Protocol,
 		}
-		ip := ec2.IpRange{CidrIp: aws.String(rule.IP)}
+		ip := ec2.IpRange{CidrIp: rule.IP}
 		p.IpRanges = append(p.IpRanges, &ip)
 		perms = append(perms, &p)
 	}
@@ -428,7 +428,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
 	req := &ec2.CreateTagsInput{
-		Resources: []*string{&ev.SecurityGroupAWSID},
+		Resources: []*string{ev.SecurityGroupAWSID},
 	}
 
 	for key, val := range ev.Tags {

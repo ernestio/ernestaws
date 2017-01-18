@@ -196,16 +196,16 @@ func mapRDSSecurityGroups(sgroups []*rds.VpcSecurityGroupMembership) []*string {
 // ToEvent converts an rds instance object to an ernest event
 func toEvent(i *rds.DBInstance, tags []*rds.Tag) *Event {
 	e := &Event{
-		ARN:                 *i.DBInstanceArn,
-		Name:                *i.DBClusterIdentifier,
-		Endpoint:            *i.Endpoint.Address,
+		ARN:                 i.DBInstanceArn,
+		Name:                i.DBClusterIdentifier,
+		Endpoint:            i.Endpoint.Address,
 		Port:                i.Endpoint.Port,
-		Engine:              *i.Engine,
+		Engine:              i.Engine,
 		EngineVersion:       i.EngineVersion,
-		Public:              *i.PubliclyAccessible,
-		MultiAZ:             *i.MultiAZ,
+		Public:              i.PubliclyAccessible,
+		MultiAZ:             i.MultiAZ,
 		PromotionTier:       i.PromotionTier,
-		AutoUpgrade:         *i.AutoMinorVersionUpgrade,
+		AutoUpgrade:         i.AutoMinorVersionUpgrade,
 		Cluster:             i.DBClusterIdentifier,
 		DatabaseName:        i.DBName,
 		DatabaseUsername:    i.MasterUsername,

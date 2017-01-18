@@ -36,10 +36,10 @@ var (
 
 // Listener ...
 type Listener struct {
-	FromPort  int64  `json:"from_port"`
-	ToPort    int64  `json:"to_port"`
-	Protocol  string `json:"protocol"`
-	SSLCertID string `json:"ssl_cert"`
+	FromPort  *int64  `json:"from_port"`
+	ToPort    *int64  `json:"to_port"`
+	Protocol  *string `json:"protocol"`
+	SSLCertID *string `json:"ssl_cert"`
 }
 
 // Event stores the template data
@@ -52,15 +52,15 @@ type Event struct {
 	AWSAccessKeyID      string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
 	VPCID               string            `json:"vpc_id"`
-	ELBName             string            `json:"name"`
-	ELBIsPrivate        bool              `json:"is_private"`
+	ELBName             *string           `json:"name"`
+	ELBIsPrivate        *bool             `json:"is_private"`
 	ELBListeners        []Listener        `json:"listeners"`
-	ELBDNSName          string            `json:"dns_name"`
+	ELBDNSName          *string           `json:"dns_name"`
 	InstanceNames       []string          `json:"instance_names"`
-	InstanceAWSIDs      []string          `json:"instance_aws_ids"`
-	NetworkAWSIDs       []string          `json:"network_aws_ids"`
+	InstanceAWSIDs      []*string         `json:"instance_aws_ids"`
+	NetworkAWSIDs       []*string         `json:"network_aws_ids"`
 	SecurityGroups      []string          `json:"security_groups"`
-	SecurityGroupAWSIDs []string          `json:"security_group_aws_ids"`
+	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
 	Tags                map[string]string `json:"tags"`
 	ErrorMessage        string            `json:"error,omitempty"`
 	Subject             string            `json:"-"`
@@ -128,27 +128,27 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterCredentialsInvalid
 	}
 
-	if ev.ELBName == "" {
+	if ev.ELBName == nil {
 		return ErrELBNameInvalid
 	}
 
 	if ev.Subject != "elb.delete.aws" {
 		// Validate Ports
 		for _, listener := range ev.ELBListeners {
-			if listener.Protocol == "" {
+			if listener.Protocol == nil {
 				return ErrELBProtocolInvalid
 			}
-			if listener.FromPort < 1 || listener.FromPort > 65535 {
+			if *listener.FromPort < 1 || *listener.FromPort > 65535 {
 				return ErrELBFromPortInvalid
 			}
-			if listener.ToPort < 1 || listener.ToPort > 65535 {
+			if *listener.ToPort < 1 || *listener.ToPort > 65535 {
 				return ErrELBToPortInvalid
 			}
 
-			if listener.Protocol != "HTTP" &&
-				listener.Protocol != "HTTPS" &&
-				listener.Protocol != "TCP" &&
-				listener.Protocol != "SSL" {
+			if *listener.Protocol != "HTTP" &&
+				*listener.Protocol != "HTTPS" &&
+				*listener.Protocol != "TCP" &&
+				*listener.Protocol != "SSL" {
 				return ErrELBProtocolInvalid
 			}
 		}
@@ -168,20 +168,16 @@ func (ev *Event) Create() error {
 
 	// Create Loadbalancer
 	req := elb.CreateLoadBalancerInput{
-		LoadBalancerName: aws.String(ev.ELBName),
+		LoadBalancerName: ev.ELBName,
 		Listeners:        ev.mapListeners(),
+		Subnets:          ev.NetworkAWSIDs,
+		SecurityGroups:   ev.SecurityGroupAWSIDs,
 	}
 
-	if ev.ELBIsPrivate {
-		req.Scheme = aws.String("internal")
-	}
-
-	for _, sg := range ev.SecurityGroupAWSIDs {
-		req.SecurityGroups = append(req.SecurityGroups, aws.String(sg))
-	}
-
-	for _, subnet := range ev.NetworkAWSIDs {
-		req.Subnets = append(req.Subnets, aws.String(subnet))
+	if ev.ELBIsPrivate != nil {
+		if *ev.ELBIsPrivate {
+			req.Scheme = aws.String("internal")
+		}
 	}
 
 	resp, err := svc.CreateLoadBalancer(&req)
@@ -189,18 +185,16 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	if resp.DNSName != nil {
-		ev.ELBDNSName = *resp.DNSName
-	}
+	ev.ELBDNSName = resp.DNSName
 
 	// Add instances
 	ireq := elb.RegisterInstancesWithLoadBalancerInput{
-		LoadBalancerName: aws.String(ev.ELBName),
+		LoadBalancerName: ev.ELBName,
 	}
 
 	for _, instance := range ev.InstanceAWSIDs {
 		ireq.Instances = append(ireq.Instances, &elb.Instance{
-			InstanceId: aws.String(instance),
+			InstanceId: instance,
 		})
 	}
 
@@ -217,7 +211,7 @@ func (ev *Event) Update() error {
 	svc := ev.getELBClient()
 
 	req := elb.DescribeLoadBalancersInput{
-		LoadBalancerNames: []*string{aws.String(ev.ELBName)},
+		LoadBalancerNames: []*string{ev.ELBName},
 	}
 
 	resp, err := svc.DescribeLoadBalancers(&req)
@@ -261,7 +255,7 @@ func (ev *Event) Delete() error {
 
 	// Delete Loadbalancer
 	req := elb.DeleteLoadBalancerInput{
-		LoadBalancerName: aws.String(ev.ELBName),
+		LoadBalancerName: ev.ELBName,
 	}
 
 	_, err := svc.DeleteLoadBalancer(&req)
@@ -282,11 +276,11 @@ func (ev *Event) mapListeners() []*elb.Listener {
 
 	for _, port := range ev.ELBListeners {
 		l = append(l, &elb.Listener{
-			Protocol:         aws.String(port.Protocol),
-			LoadBalancerPort: aws.Int64(port.FromPort),
-			InstancePort:     aws.Int64(port.ToPort),
-			InstanceProtocol: aws.String(port.Protocol),
-			SSLCertificateId: aws.String(port.SSLCertID),
+			Protocol:         port.Protocol,
+			LoadBalancerPort: port.FromPort,
+			InstancePort:     port.ToPort,
+			InstanceProtocol: port.Protocol,
+			SSLCertificateId: port.SSLCertID,
 		})
 	}
 
@@ -301,7 +295,7 @@ func (ev *Event) getELBClient() *elb.ELB {
 	})
 }
 
-func (ev *Event) updateELBInstances(svc *elb.ELB, lb *elb.LoadBalancerDescription, ni []string) error {
+func (ev *Event) updateELBInstances(svc *elb.ELB, lb *elb.LoadBalancerDescription, ni []*string) error {
 	var err error
 
 	// Instances to remove
@@ -356,7 +350,7 @@ func (ev *Event) updateELBListeners(svc *elb.ELB, lb *elb.LoadBalancerDescriptio
 	return err
 }
 
-func (ev *Event) updateELBNetworks(svc *elb.ELB, lb *elb.LoadBalancerDescription, nl []string) error {
+func (ev *Event) updateELBNetworks(svc *elb.ELB, lb *elb.LoadBalancerDescription, nl []*string) error {
 	var err error
 
 	dsreq := elb.DetachLoadBalancerFromSubnetsInput{
@@ -383,17 +377,12 @@ func (ev *Event) updateELBNetworks(svc *elb.ELB, lb *elb.LoadBalancerDescription
 	return err
 }
 
-func (ev *Event) updateELBSecurityGroups(svc *elb.ELB, lb *elb.LoadBalancerDescription, nsg []string) error {
+func (ev *Event) updateELBSecurityGroups(svc *elb.ELB, lb *elb.LoadBalancerDescription, nsg []*string) error {
 	var err error
-	var sgs []*string
-
-	for _, sg := range nsg {
-		sgs = append(sgs, aws.String(sg))
-	}
 
 	req := elb.ApplySecurityGroupsToLoadBalancerInput{
 		LoadBalancerName: lb.LoadBalancerName,
-		SecurityGroups:   sgs,
+		SecurityGroups:   nsg,
 	}
 
 	if len(req.SecurityGroups) > 0 {
@@ -403,9 +392,9 @@ func (ev *Event) updateELBSecurityGroups(svc *elb.ELB, lb *elb.LoadBalancerDescr
 	return err
 }
 
-func (ev *Event) portInUse(listeners []*elb.ListenerDescription, port int64) bool {
+func (ev *Event) portInUse(listeners []*elb.ListenerDescription, port *int64) bool {
 	for _, l := range listeners {
-		if *l.Listener.LoadBalancerPort == port {
+		if *l.Listener.LoadBalancerPort == *port {
 			return true
 		}
 	}
@@ -415,7 +404,7 @@ func (ev *Event) portInUse(listeners []*elb.ListenerDescription, port int64) boo
 
 func (ev *Event) portRemoved(ports []Listener, listener *elb.ListenerDescription) bool {
 	for _, p := range ports {
-		if p.FromPort == *listener.Listener.LoadBalancerPort {
+		if *p.FromPort == *listener.Listener.LoadBalancerPort {
 			return false
 		}
 	}
@@ -423,31 +412,31 @@ func (ev *Event) portRemoved(ports []Listener, listener *elb.ListenerDescription
 	return true
 }
 
-func (ev *Event) instancesToRegister(newInstances []string, currentInstances []*elb.Instance) []*elb.Instance {
+func (ev *Event) instancesToRegister(newInstances []*string, currentInstances []*elb.Instance) []*elb.Instance {
 	var i []*elb.Instance
 
 	for _, instance := range newInstances {
 		exists := false
 		for _, ci := range currentInstances {
-			if instance == *ci.InstanceId {
+			if *instance == *ci.InstanceId {
 				exists = true
 			}
 		}
 		if exists != true {
-			i = append(i, &elb.Instance{InstanceId: aws.String(instance)})
+			i = append(i, &elb.Instance{InstanceId: instance})
 		}
 	}
 
 	return i
 }
 
-func (ev *Event) instancesToDeregister(newInstances []string, currentInstances []*elb.Instance) []*elb.Instance {
+func (ev *Event) instancesToDeregister(newInstances []*string, currentInstances []*elb.Instance) []*elb.Instance {
 	var i []*elb.Instance
 
 	for _, ci := range currentInstances {
 		exists := false
 		for _, instance := range newInstances {
-			if *ci.InstanceId == instance {
+			if *ci.InstanceId == *instance {
 				exists = true
 			}
 		}
@@ -478,11 +467,11 @@ func (ev *Event) listenersToCreate(newListeners []Listener, currentListeners []*
 
 		if ev.portInUse(currentListeners, listener.FromPort) != true {
 			l = append(l, &elb.Listener{
-				Protocol:         aws.String(listener.Protocol),
-				LoadBalancerPort: aws.Int64(listener.FromPort),
-				InstancePort:     aws.Int64(listener.ToPort),
-				InstanceProtocol: aws.String(listener.Protocol),
-				SSLCertificateId: aws.String(listener.SSLCertID),
+				Protocol:         listener.Protocol,
+				LoadBalancerPort: listener.FromPort,
+				InstancePort:     listener.ToPort,
+				InstanceProtocol: listener.Protocol,
+				SSLCertificateId: listener.SSLCertID,
 			})
 		}
 	}
@@ -490,31 +479,31 @@ func (ev *Event) listenersToCreate(newListeners []Listener, currentListeners []*
 	return l
 }
 
-func (ev *Event) subnetsToAttach(newSubnets []string, currentSubnets []*string) []*string {
+func (ev *Event) subnetsToAttach(newSubnets []*string, currentSubnets []*string) []*string {
 	var s []*string
 
 	for _, subnet := range newSubnets {
 		exists := false
 		for _, cs := range currentSubnets {
-			if subnet == *cs {
+			if *subnet == *cs {
 				exists = true
 			}
 		}
 		if exists != true {
-			s = append(s, aws.String(subnet))
+			s = append(s, subnet)
 		}
 	}
 
 	return s
 }
 
-func (ev *Event) subnetsToDetach(newSubnets []string, currentSubnets []*string) []*string {
+func (ev *Event) subnetsToDetach(newSubnets []*string, currentSubnets []*string) []*string {
 	var s []*string
 
 	for _, cs := range currentSubnets {
 		exists := false
 		for _, subnet := range newSubnets {
-			if *cs == subnet {
+			if *cs == *subnet {
 				exists = true
 			}
 		}
@@ -530,7 +519,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getELBClient()
 
 	req := &elb.AddTagsInput{
-		LoadBalancerNames: []*string{&ev.ELBName},
+		LoadBalancerNames: []*string{ev.ELBName},
 	}
 
 	for key, val := range ev.Tags {

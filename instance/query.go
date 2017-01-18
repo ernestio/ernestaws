@@ -141,11 +141,11 @@ func mapFilters(tags map[string]string) []*ec2.Filter {
 	return f
 }
 
-func mapAWSSecurityGroupIDs(gi []*ec2.GroupIdentifier) []string {
-	var sgs []string
+func mapAWSSecurityGroupIDs(gi []*ec2.GroupIdentifier) []*string {
+	var sgs []*string
 
 	for _, sg := range gi {
-		sgs = append(sgs, *sg.GroupId)
+		sgs = append(sgs, sg.GroupId)
 	}
 
 	return sgs
@@ -156,8 +156,8 @@ func mapAWSVolumes(vs []*ec2.InstanceBlockDeviceMapping) []Volume {
 
 	for _, v := range vs {
 		vols = append(vols, Volume{
-			Device:      *v.DeviceName,
-			VolumeAWSID: *v.Ebs.VolumeId,
+			Device:      v.DeviceName,
+			VolumeAWSID: v.Ebs.VolumeId,
 		})
 	}
 
@@ -167,14 +167,14 @@ func mapAWSVolumes(vs []*ec2.InstanceBlockDeviceMapping) []Volume {
 // ToEvent converts an ec2 instance object to an ernest event
 func toEvent(i *ec2.Instance) *Event {
 	return &Event{
-		NetworkAWSID:        *i.SubnetId,
+		NetworkAWSID:        i.SubnetId,
 		SecurityGroupAWSIDs: mapAWSSecurityGroupIDs(i.SecurityGroups),
-		InstanceAWSID:       *i.InstanceId,
-		InstanceType:        *i.InstanceType,
-		Image:               *i.ImageId,
-		IP:                  *i.PrivateIpAddress,
-		KeyPair:             *i.KeyName,
-		PublicIP:            *i.PublicIpAddress,
+		InstanceAWSID:       i.InstanceId,
+		InstanceType:        i.InstanceType,
+		Image:               i.ImageId,
+		IP:                  i.PrivateIpAddress,
+		KeyPair:             i.KeyName,
+		PublicIP:            i.PublicIpAddress,
 		Volumes:             mapAWSVolumes(i.BlockDeviceMappings),
 		Tags:                mapEC2Tags(i.Tags),
 	}

@@ -146,13 +146,13 @@ func mapEC2Tags(input []*ec2.TagDescription) map[string]string {
 	return t
 }
 
-func getPublicAllocation(addresses []*ec2.NatGatewayAddress) (string, string) {
+func getPublicAllocation(addresses []*ec2.NatGatewayAddress) (*string, *string) {
 	for _, a := range addresses {
 		if a.PublicIp != nil {
-			return *a.AllocationId, *a.PublicIp
+			return a.AllocationId, a.PublicIp
 		}
 	}
-	return "", ""
+	return nil, nil
 }
 
 // ToEvent converts an ec2 nat gateway object to an ernest event
@@ -161,8 +161,8 @@ func toEvent(ng *ec2.NatGateway) *Event {
 
 	e := &Event{
 		VPCID:                  *ng.VpcId,
-		NatGatewayAWSID:        *ng.NatGatewayId,
-		NetworkAWSID:           *ng.SubnetId,
+		NatGatewayAWSID:        ng.NatGatewayId,
+		NetworkAWSID:           ng.SubnetId,
 		NatGatewayAllocationID: id,
 		NatGatewayAllocationIP: ip,
 		//RoutedNetworksAWSIDs
