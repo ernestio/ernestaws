@@ -43,13 +43,13 @@ type Event struct {
 	DatacenterRegion   string            `json:"datacenter_region"`
 	AWSAccessKeyID     string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
-	VolumeAWSID        string            `json:"volume_aws_id"`
-	Name               string            `json:"name"`
-	AvailabilityZone   string            `json:"availability_zone"`
-	VolumeType         string            `json:"volume_type"`
+	VolumeAWSID        *string           `json:"volume_aws_id"`
+	Name               *string           `json:"name"`
+	AvailabilityZone   *string           `json:"availability_zone"`
+	VolumeType         *string           `json:"volume_type"`
 	Size               *int64            `json:"size"`
 	Iops               *int64            `json:"iops"`
-	Encrypted          bool              `json:"encrypted"`
+	Encrypted          *bool             `json:"encrypted"`
 	EncryptionKeyID    *string           `json:"encryption_key_id"`
 	Tags               map[string]string `json:"tags"`
 	ErrorMessage       string            `json:"error,omitempty"`
@@ -119,20 +119,20 @@ func (ev *Event) Validate() error {
 	}
 
 	if ev.Subject != "ebs_volume.create.aws" {
-		if ev.VolumeAWSID == "" {
+		if ev.VolumeAWSID == nil {
 			return ErrVolumeIDInvalid
 		}
 	}
 
-	if ev.Name == "" {
+	if ev.Name == nil {
 		return ErrVolumeNameInvalid
 	}
 
-	if ev.AvailabilityZone == "" {
+	if ev.AvailabilityZone == nil {
 		return ErrAvailabilityZoneInvalid
 	}
 
-	if ev.VolumeType == "" {
+	if ev.VolumeType == nil {
 		return ErrVolumeTypeInvalid
 	}
 
@@ -149,11 +149,11 @@ func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
 
 	req := &ec2.CreateVolumeInput{
-		AvailabilityZone: aws.String(ev.AvailabilityZone),
-		VolumeType:       aws.String(ev.VolumeType),
+		AvailabilityZone: ev.AvailabilityZone,
+		VolumeType:       ev.VolumeType,
 		Size:             ev.Size,
 		Iops:             ev.Iops,
-		Encrypted:        aws.Bool(ev.Encrypted),
+		Encrypted:        ev.Encrypted,
 		KmsKeyId:         ev.EncryptionKeyID,
 	}
 
@@ -162,7 +162,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	ev.VolumeAWSID = *resp.VolumeId
+	ev.VolumeAWSID = resp.VolumeId
 
 	return ev.setTags()
 }
@@ -177,7 +177,7 @@ func (ev *Event) Delete() error {
 	svc := ev.getEC2Client()
 
 	req := &ec2.DeleteVolumeInput{
-		VolumeId: aws.String(ev.VolumeAWSID),
+		VolumeId: ev.VolumeAWSID,
 	}
 
 	_, err := svc.DeleteVolume(req)

@@ -158,55 +158,42 @@ func mapELBListeners(input []*elb.ListenerDescription) []Listener {
 	var listeners []Listener
 
 	for _, ld := range input {
-		var xl Listener
-
-		if ld.Listener.LoadBalancerPort != nil {
-			xl.FromPort = *ld.Listener.LoadBalancerPort
-		}
-
-		if ld.Listener.InstancePort != nil {
-			xl.ToPort = *ld.Listener.InstancePort
-		}
-
-		if ld.Listener.Protocol != nil {
-			xl.Protocol = *ld.Listener.Protocol
-		}
-
-		if ld.Listener.SSLCertificateId != nil {
-			xl.SSLCertID = *ld.Listener.SSLCertificateId
-		}
-
-		listeners = append(listeners, xl)
+		listeners = append(listeners, Listener{
+			FromPort:  ld.Listener.LoadBalancerPort,
+			ToPort:    ld.Listener.InstancePort,
+			Protocol:  ld.Listener.Protocol,
+			SSLCertID: ld.Listener.SSLCertificateId,
+		})
 	}
 
 	return listeners
 }
 
-func mapELBSecurityGroups(input []*string) []string {
-	var sgs []string
+func mapELBSecurityGroups(input []*string) []*string {
+	var sgs []*string
 
 	for _, sg := range input {
-		sgs = append(sgs, *sg)
+		sgs = append(sgs, sg)
 	}
 
 	return sgs
 }
 
-func mapELBInstances(input []*elb.Instance) []string {
-	var instances []string
+func mapELBInstances(input []*elb.Instance) []*string {
+	var instances []*string
 
 	for _, i := range input {
-		instances = append(instances, *i.InstanceId)
+		instances = append(instances, i.InstanceId)
 	}
 
 	return instances
 }
 
-func mapELBSubnets(input []*string) []string {
-	var subnets []string
+func mapELBSubnets(input []*string) []*string {
+	var subnets []*string
 
 	for _, s := range input {
-		subnets = append(subnets, *s)
+		subnets = append(subnets, s)
 	}
 
 	return subnets
@@ -216,8 +203,8 @@ func mapELBSubnets(input []*string) []string {
 func toEvent(e *elb.LoadBalancerDescription, tags []*elb.Tag) *Event {
 	return &Event{
 		VPCID:               *e.VPCId,
-		ELBName:             *e.LoadBalancerName,
-		ELBDNSName:          *e.DNSName,
+		ELBName:             e.LoadBalancerName,
+		ELBDNSName:          e.DNSName,
 		ELBListeners:        mapELBListeners(e.ListenerDescriptions),
 		InstanceAWSIDs:      mapELBInstances(e.Instances),
 		NetworkAWSIDs:       mapELBSubnets(e.Subnets),

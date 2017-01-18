@@ -151,12 +151,12 @@ func mapEC2Tags(input []*ec2.Tag) map[string]string {
 // toEvent converts an ec2 instance object to an ernest event
 func toEvent(v *ec2.Volume) *Event {
 	return &Event{
-		VolumeAWSID:      *v.VolumeId,
-		AvailabilityZone: *v.AvailabilityZone,
-		VolumeType:       *v.VolumeType,
+		VolumeAWSID:      v.VolumeId,
+		AvailabilityZone: v.AvailabilityZone,
+		VolumeType:       v.VolumeType,
 		Size:             v.Size,
 		Iops:             v.Iops,
-		Encrypted:        *v.Encrypted,
+		Encrypted:        v.Encrypted,
 		EncryptionKeyID:  v.KmsKeyId,
 		Tags:             mapEC2Tags(v.Tags),
 	}
