@@ -25,7 +25,7 @@ type Collection struct {
 	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
 	DatacenterRegion   string            `json:"datacenter_region"`
 	Tags               map[string]string `json:"tags"`
-	Results            []interface{}     `json:"results"`
+	Results            []interface{}     `json:"components"`
 	ErrorMessage       string            `json:"error,omitempty"`
 	Subject            string            `json:"-"`
 	Body               []byte            `json:"-"`
