@@ -153,9 +153,9 @@ func mapEC2Tags(input []*ec2.Tag) map[string]string {
 func toEvent(n *ec2.Subnet) *Event {
 	return &Event{
 		VPCID:            *n.VpcId,
-		NetworkAWSID:     *n.SubnetId,
-		Subnet:           *n.CidrBlock,
-		AvailabilityZone: *n.AvailabilityZone,
+		NetworkAWSID:     n.SubnetId,
+		Subnet:           n.CidrBlock,
+		AvailabilityZone: n.AvailabilityZone,
 		Tags:             mapEC2Tags(n.Tags),
 	}
 }

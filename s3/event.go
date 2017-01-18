@@ -30,9 +30,9 @@ var (
 
 // Grantee ...
 type Grantee struct {
-	ID          string `json:"id"`
-	Type        string `json:"type"`
-	Permissions string `json:"permissions"`
+	ID          *string `json:"id"`
+	Type        *string `json:"type"`
+	Permissions *string `json:"permissions"`
 }
 
 // Event stores the template data
@@ -44,10 +44,10 @@ type Event struct {
 	DatacenterRegion   string            `json:"datacenter_region"`
 	AWSAccessKeyID     string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
-	Name               string            `json:"name"`
-	ACL                string            `json:"acl"`
-	BucketLocation     string            `json:"bucket_location"`
-	BucketURI          string            `json:"bucket_uri"`
+	Name               *string           `json:"name"`
+	ACL                *string           `json:"acl"`
+	BucketLocation     *string           `json:"bucket_location"`
+	BucketURI          *string           `json:"bucket_uri"`
 	Grantees           []Grantee         `json:"grantees"`
 	Tags               map[string]string `json:"tags"`
 	ErrorMessage       string            `json:"error,omitempty"`
@@ -112,7 +112,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterCredentialsInvalid
 	}
 
-	if ev.Name == "" {
+	if ev.Name == nil {
 		return ErrS3NameInvalid
 	}
 
@@ -129,10 +129,10 @@ func (ev *Event) Create() error {
 	s3client := ev.getS3Client()
 
 	params := &s3.CreateBucketInput{
-		Bucket: aws.String(ev.Name),
-		ACL:    aws.String(ev.ACL),
+		Bucket: ev.Name,
+		ACL:    ev.ACL,
 		CreateBucketConfiguration: &s3.CreateBucketConfiguration{
-			LocationConstraint: aws.String(ev.BucketLocation),
+			LocationConstraint: ev.BucketLocation,
 		},
 	}
 
@@ -150,7 +150,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	ev.BucketURI = *resp.Location
+	ev.BucketURI = resp.Location
 
 	if len(ev.Grantees) < 1 {
 		return nil
@@ -168,8 +168,8 @@ func (ev *Event) Create() error {
 func (ev *Event) Update() error {
 	s3client := ev.getS3Client()
 	params := &s3.PutBucketAclInput{
-		Bucket: aws.String(ev.Name),
-		ACL:    aws.String(ev.ACL),
+		Bucket: ev.Name,
+		ACL:    ev.ACL,
 	}
 
 	var grants []*s3.Grant
@@ -177,25 +177,25 @@ func (ev *Event) Update() error {
 	for _, g := range ev.Grantees {
 		var grantee s3.Grantee
 
-		switch g.Type {
+		switch *g.Type {
 		case "id":
 			grantee.Type = aws.String(s3.TypeCanonicalUser)
-			grantee.ID = aws.String(g.ID)
+			grantee.ID = g.ID
 		case "emailaddress":
 			grantee.Type = aws.String(s3.TypeAmazonCustomerByEmail)
-			grantee.EmailAddress = aws.String(g.ID)
+			grantee.EmailAddress = g.ID
 		case "uri":
 			grantee.Type = aws.String(s3.TypeGroup)
-			grantee.URI = aws.String(g.ID)
+			grantee.URI = g.ID
 		}
 
 		grants = append(grants, &s3.Grant{
 			Grantee:    &grantee,
-			Permission: aws.String(g.Permissions),
+			Permission: g.Permissions,
 		})
 	}
 
-	if ev.ACL == "" {
+	if ev.ACL == nil {
 		grt, err := ev.getACL()
 		if err != nil {
 			return err
@@ -219,7 +219,7 @@ func (ev *Event) Update() error {
 func (ev *Event) Delete() error {
 	s3client := ev.getS3Client()
 	params := &s3.DeleteBucketInput{
-		Bucket: aws.String(ev.Name),
+		Bucket: ev.Name,
 	}
 	_, err := s3client.DeleteBucket(params)
 
@@ -244,7 +244,7 @@ func (ev *Event) getACL() (*s3.GetBucketAclOutput, error) {
 	s3client := ev.getS3Client()
 
 	params := &s3.GetBucketAclInput{
-		Bucket: aws.String(ev.Name),
+		Bucket: ev.Name,
 	}
 
 	resp, err := s3client.GetBucketAcl(params)
@@ -258,7 +258,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getS3Client()
 
 	req := &s3.PutBucketTaggingInput{
-		Bucket: &ev.Name,
+		Bucket: ev.Name,
 	}
 
 	tags := s3.Tagging{}

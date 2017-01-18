@@ -182,11 +182,11 @@ func mapRoute53Tags(input []*route53.Tag) map[string]string {
 	return t
 }
 
-func mapRecordValues(rv []*route53.ResourceRecord) []string {
-	var values []string
+func mapRecordValues(rv []*route53.ResourceRecord) []*string {
+	var values []*string
 
 	for _, v := range rv {
-		values = append(values, *v.Value)
+		values = append(values, v.Value)
 	}
 
 	return values
@@ -197,9 +197,9 @@ func mapRoute53Records(records []*route53.ResourceRecordSet) []Record {
 
 	for _, r := range records {
 		zr = append(zr, Record{
-			Entry:  *r.Name,
-			Type:   *r.Type,
-			TTL:    *r.TTL,
+			Entry:  r.Name,
+			Type:   r.Type,
+			TTL:    r.TTL,
 			Values: mapRecordValues(r.ResourceRecords),
 		})
 	}
@@ -210,9 +210,9 @@ func mapRoute53Records(records []*route53.ResourceRecordSet) []Record {
 // ToEvent converts an route53 instance object to an ernest event
 func toEvent(z *route53.HostedZone, records []*route53.ResourceRecordSet, tags []*route53.Tag) *Event {
 	e := &Event{
-		HostedZoneID: *z.Id,
-		Name:         *z.Name,
-		Private:      *z.Config.PrivateZone,
+		HostedZoneID: z.Id,
+		Name:         z.Name,
+		Private:      z.Config.PrivateZone,
 		Records:      mapRoute53Records(records),
 		Tags:         mapRoute53Tags(tags),
 	}

@@ -39,9 +39,9 @@ var (
 
 // Volume stores ebs volume data
 type Volume struct {
-	Name        string `json:"name"`
-	Device      string `json:"device"`
-	VolumeAWSID string `json:"volume_aws_id"`
+	Name        *string `json:"name"`
+	Device      *string `json:"device"`
+	VolumeAWSID *string `json:"volume_aws_id"`
 }
 
 // Event stores the template data
@@ -53,20 +53,20 @@ type Event struct {
 	DatacenterRegion    string            `json:"datacenter_region"`
 	AWSAccessKeyID      string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
-	NetworkAWSID        string            `json:"network_aws_id"`
-	NetworkIsPublic     bool              `json:"network_is_public"`
-	SecurityGroupAWSIDs []string          `json:"security_group_aws_ids"`
-	InstanceAWSID       string            `json:"instance_aws_id,omitempty"`
-	Name                string            `json:"name"`
-	Image               string            `json:"image"`
-	InstanceType        string            `json:"instance_type"`
-	IP                  string            `json:"ip"`
-	KeyPair             string            `json:"key_pair"`
-	UserData            string            `json:"user_data"`
-	PublicIP            string            `json:"public_ip"`
-	ElasticIP           string            `json:"elastic_ip"`
-	ElasticIPAWSID      string            `json:"elastic_ip_aws_id"`
-	AssignElasticIP     bool              `json:"assign_elastic_ip"`
+	NetworkAWSID        *string           `json:"network_aws_id"`
+	NetworkIsPublic     *bool             `json:"network_is_public"`
+	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
+	InstanceAWSID       *string           `json:"instance_aws_id,omitempty"`
+	Name                *string           `json:"name"`
+	Image               *string           `json:"image"`
+	InstanceType        *string           `json:"instance_type"`
+	IP                  *string           `json:"ip"`
+	KeyPair             *string           `json:"key_pair"`
+	UserData            *string           `json:"user_data"`
+	PublicIP            *string           `json:"public_ip"`
+	ElasticIP           *string           `json:"elastic_ip"`
+	ElasticIPAWSID      *string           `json:"elastic_ip_aws_id"`
+	AssignElasticIP     *bool             `json:"assign_elastic_ip"`
 	Volumes             []Volume          `json:"volumes"`
 	Tags                map[string]string `json:"tags"`
 	ErrorMessage        string            `json:"error,omitempty"`
@@ -136,26 +136,26 @@ func (ev *Event) Validate() error {
 	}
 
 	if ev.Subject != "instance.create.aws" {
-		if ev.InstanceAWSID == "" {
+		if ev.InstanceAWSID == nil {
 			return ErrInstanceAWSIDInvalid
 		}
 	}
 
 	if ev.Subject != "instance.delete.aws" {
-		if ev.NetworkAWSID == "" {
+		if ev.NetworkAWSID == nil {
 			return ErrNetworkInvalid
 		}
 	}
 
-	if ev.Name == "" {
+	if ev.Name == nil {
 		return ErrInstanceNameInvalid
 	}
 
-	if ev.Image == "" {
+	if ev.Image == nil {
 		return ErrInstanceImageInvalid
 	}
 
-	if ev.InstanceType == "" {
+	if ev.InstanceType == nil {
 		return ErrInstanceTypeInvalid
 	}
 
@@ -172,22 +172,21 @@ func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
 
 	req := ec2.RunInstancesInput{
-		SubnetId:         aws.String(ev.NetworkAWSID),
-		ImageId:          aws.String(ev.Image),
-		InstanceType:     aws.String(ev.InstanceType),
-		PrivateIpAddress: aws.String(ev.IP),
-		KeyName:          aws.String(ev.KeyPair),
+		SubnetId:         ev.NetworkAWSID,
+		ImageId:          ev.Image,
+		InstanceType:     ev.InstanceType,
+		PrivateIpAddress: ev.IP,
+		KeyName:          ev.KeyPair,
 		MaxCount:         aws.Int64(1),
 		MinCount:         aws.Int64(1),
 	}
 
 	for _, sg := range ev.SecurityGroupAWSIDs {
-		req.SecurityGroupIds = append(req.SecurityGroupIds, aws.String(sg))
+		req.SecurityGroupIds = append(req.SecurityGroupIds, sg)
 	}
 
-	if ev.UserData != "" {
-		data := ev.encodeUserData(ev.UserData)
-		req.UserData = aws.String(data)
+	if ev.UserData != nil {
+		req.UserData = ev.encodeUserData(ev.UserData)
 	}
 
 	resp, err := svc.RunInstances(&req)
@@ -204,23 +203,21 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	if ev.AssignElasticIP {
-		ev.ElasticIP, ev.ElasticIPAWSID, err = ev.assignElasticIP(svc, *resp.Instances[0].InstanceId)
+	if *ev.AssignElasticIP {
+		ev.ElasticIP, ev.ElasticIPAWSID, err = ev.assignElasticIP(svc, resp.Instances[0].InstanceId)
 		if err != nil {
 			return err
 		}
 	}
 
-	ev.InstanceAWSID = *resp.Instances[0].InstanceId
+	ev.InstanceAWSID = resp.Instances[0].InstanceId
 
 	instance, err := ev.getInstanceByID(resp.Instances[0].InstanceId)
 	if err != nil {
 		return err
 	}
 
-	if instance.PublicIpAddress != nil {
-		ev.PublicIP = *instance.PublicIpAddress
-	}
+	ev.PublicIP = instance.PublicIpAddress
 
 	err = ev.setTags()
 	if err != nil {
@@ -235,11 +232,11 @@ func (ev *Event) Update() error {
 	svc := ev.getEC2Client()
 
 	builtInstance := ec2.DescribeInstancesInput{
-		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
+		InstanceIds: []*string{ev.InstanceAWSID},
 	}
 
 	okInstance := ec2.DescribeInstanceStatusInput{
-		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
+		InstanceIds: []*string{ev.InstanceAWSID},
 	}
 
 	err := svc.WaitUntilInstanceStatusOk(&okInstance)
@@ -248,7 +245,7 @@ func (ev *Event) Update() error {
 	}
 
 	stopreq := ec2.StopInstancesInput{
-		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
+		InstanceIds: []*string{ev.InstanceAWSID},
 	}
 
 	// power off the instance
@@ -264,9 +261,9 @@ func (ev *Event) Update() error {
 
 	// resize the instance
 	req := ec2.ModifyInstanceAttributeInput{
-		InstanceId: aws.String(ev.InstanceAWSID),
+		InstanceId: ev.InstanceAWSID,
 		InstanceType: &ec2.AttributeValue{
-			Value: aws.String(ev.InstanceType),
+			Value: ev.InstanceType,
 		},
 	}
 
@@ -277,12 +274,12 @@ func (ev *Event) Update() error {
 
 	// update instance security groups
 	req = ec2.ModifyInstanceAttributeInput{
-		InstanceId: aws.String(ev.InstanceAWSID),
+		InstanceId: ev.InstanceAWSID,
 		Groups:     []*string{},
 	}
 
 	for _, sg := range ev.SecurityGroupAWSIDs {
-		req.Groups = append(req.Groups, aws.String(sg))
+		req.Groups = append(req.Groups, sg)
 	}
 
 	_, err = svc.ModifyInstanceAttribute(&req)
@@ -297,7 +294,7 @@ func (ev *Event) Update() error {
 
 	// power the instance back on
 	startreq := ec2.StartInstancesInput{
-		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
+		InstanceIds: []*string{ev.InstanceAWSID},
 	}
 
 	_, err = svc.StartInstances(&startreq)
@@ -310,14 +307,12 @@ func (ev *Event) Update() error {
 		return err
 	}
 
-	instance, err := ev.getInstanceByID(&ev.InstanceAWSID)
+	instance, err := ev.getInstanceByID(ev.InstanceAWSID)
 	if err != nil {
 		return err
 	}
 
-	if instance.PublicIpAddress != nil {
-		ev.PublicIP = *instance.PublicIpAddress
-	}
+	ev.PublicIP = instance.PublicIpAddress
 
 	return ev.setTags()
 }
@@ -327,7 +322,7 @@ func (ev *Event) Delete() error {
 	svc := ev.getEC2Client()
 
 	req := ec2.TerminateInstancesInput{
-		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
+		InstanceIds: []*string{ev.InstanceAWSID},
 	}
 
 	_, err := svc.TerminateInstances(&req)
@@ -336,7 +331,7 @@ func (ev *Event) Delete() error {
 	}
 
 	termreq := ec2.DescribeInstancesInput{
-		InstanceIds: []*string{aws.String(ev.InstanceAWSID)},
+		InstanceIds: []*string{ev.InstanceAWSID},
 	}
 
 	err = svc.WaitUntilInstanceTerminated(&termreq)
@@ -344,9 +339,9 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
-	if ev.ElasticIP != "" {
+	if ev.ElasticIP != nil {
 		rreq := &ec2.ReleaseAddressInput{
-			AllocationId: aws.String(ev.ElasticIPAWSID),
+			AllocationId: ev.ElasticIPAWSID,
 		}
 
 		_, err = svc.ReleaseAddress(rreq)
@@ -368,23 +363,23 @@ func (ev *Event) getEC2Client() *ec2.EC2 {
 	})
 }
 
-func (ev *Event) assignElasticIP(svc *ec2.EC2, instanceID string) (string, string, error) {
+func (ev *Event) assignElasticIP(svc *ec2.EC2, instanceID *string) (*string, *string, error) {
 	// Create Elastic IP
 	resp, err := svc.AllocateAddress(nil)
 	if err != nil {
-		return "", "", err
+		return nil, nil, err
 	}
 
 	req := ec2.AssociateAddressInput{
-		InstanceId:   aws.String(instanceID),
+		InstanceId:   instanceID,
 		AllocationId: resp.AllocationId,
 	}
 	_, err = svc.AssociateAddress(&req)
 	if err != nil {
-		return "", "", err
+		return nil, nil, err
 	}
 
-	return *resp.PublicIp, *resp.AllocationId, nil
+	return resp.PublicIp, resp.AllocationId, nil
 }
 
 func (ev *Event) getInstanceByID(id *string) (*ec2.Instance, error) {
@@ -410,14 +405,15 @@ func (ev *Event) getInstanceByID(id *string) (*ec2.Instance, error) {
 	return resp.Reservations[0].Instances[0], nil
 }
 
-func (ev *Event) encodeUserData(data string) string {
-	return base64.StdEncoding.EncodeToString([]byte(data))
+func (ev *Event) encodeUserData(data *string) *string {
+	value := base64.StdEncoding.EncodeToString([]byte(*data))
+	return &value
 }
 
 func (ev *Event) attachVolumes() error {
 	svc := ev.getEC2Client()
 
-	instance, err := ev.getInstanceByID(&ev.InstanceAWSID)
+	instance, err := ev.getInstanceByID(ev.InstanceAWSID)
 	if err != nil {
 		return err
 	}
@@ -428,7 +424,7 @@ func (ev *Event) attachVolumes() error {
 		}
 
 		req := &ec2.DetachVolumeInput{
-			InstanceId: aws.String(ev.InstanceAWSID),
+			InstanceId: ev.InstanceAWSID,
 			VolumeId:   bdm.Ebs.VolumeId,
 		}
 
@@ -445,9 +441,9 @@ func (ev *Event) attachVolumes() error {
 		}
 
 		req := &ec2.AttachVolumeInput{
-			Device:     aws.String(vol.Device),
-			VolumeId:   aws.String(vol.VolumeAWSID),
-			InstanceId: aws.String(ev.InstanceAWSID),
+			Device:     vol.Device,
+			VolumeId:   vol.VolumeAWSID,
+			InstanceId: ev.InstanceAWSID,
 		}
 
 		_, err = svc.AttachVolume(req)
@@ -463,7 +459,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
 	req := &ec2.CreateTagsInput{
-		Resources: []*string{&ev.InstanceAWSID},
+		Resources: []*string{ev.InstanceAWSID},
 	}
 
 	for key, val := range ev.Tags {
@@ -480,7 +476,7 @@ func (ev *Event) setTags() error {
 
 func hasVolumeAttached(bdms []*ec2.InstanceBlockDeviceMapping, vol Volume) bool {
 	for _, bdm := range bdms {
-		if *bdm.Ebs.VolumeId == vol.VolumeAWSID || *bdm.DeviceName == vol.Device {
+		if *bdm.Ebs.VolumeId == *vol.VolumeAWSID || *bdm.DeviceName == *vol.Device {
 			return true
 		}
 	}
@@ -490,7 +486,7 @@ func hasVolumeAttached(bdms []*ec2.InstanceBlockDeviceMapping, vol Volume) bool 
 
 func hasBlockDevice(volumes []Volume, bdm *ec2.InstanceBlockDeviceMapping) bool {
 	for _, vol := range volumes {
-		if vol.VolumeAWSID == *bdm.Ebs.VolumeId || vol.Device == *bdm.DeviceName {
+		if *vol.VolumeAWSID == *bdm.Ebs.VolumeId || *vol.Device == *bdm.DeviceName {
 			return true
 		}
 	}

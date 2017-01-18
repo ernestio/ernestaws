@@ -35,8 +35,8 @@ type Event struct {
 	DatacenterRegion   string            `json:"datacenter_region,omitempty"`
 	AWSAccessKeyID     string            `json:"aws_access_key_id,omitempty"`
 	AWSSecretAccessKey string            `json:"aws_secret_access_key,omitempty"`
-	VpcID              string            `json:"vpc_id"`
-	VpcSubnet          string            `json:"vpc_subnet"`
+	VpcID              *string           `json:"vpc_id"`
+	VpcSubnet          *string           `json:"vpc_subnet"`
 	Tags               map[string]string `json:"tags"`
 	ErrorMessage       string            `json:"error,omitempty"`
 	Subject            string            `json:"-"`
@@ -93,7 +93,7 @@ func (ev *Event) Error(err error) {
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
 	if ev.Subject == "vpc.delete.aws" {
-		if ev.VpcID == "" {
+		if ev.VpcID == nil {
 			return ErrDatacenterIDInvalid
 		}
 	}
@@ -118,13 +118,13 @@ func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
 
 	req := ec2.CreateVpcInput{
-		CidrBlock: aws.String(ev.VpcSubnet),
+		CidrBlock: ev.VpcSubnet,
 	}
 	resp, err := svc.CreateVpc(&req)
 	if err != nil {
 		return err
 	}
-	ev.VpcID = *resp.Vpc.VpcId
+	ev.VpcID = resp.Vpc.VpcId
 
 	return ev.setTags()
 }
@@ -139,7 +139,7 @@ func (ev *Event) Delete() error {
 	svc := ev.getEC2Client()
 
 	req := ec2.DeleteVpcInput{
-		VpcId: aws.String(ev.VpcID),
+		VpcId: ev.VpcID,
 	}
 	_, err := svc.DeleteVpc(&req)
 	if err != nil {
@@ -167,7 +167,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
 	req := &ec2.CreateTagsInput{
-		Resources: []*string{&ev.VpcID},
+		Resources: []*string{ev.VpcID},
 		Tags:      mapTags(ev.Tags),
 	}
 

@@ -41,15 +41,15 @@ type Event struct {
 	AWSAccessKeyID      string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
 	VPCID               string            `json:"vpc_id"`
-	ARN                 string            `json:"arn"`
-	Name                string            `json:"name"`
-	Size                string            `json:"size"`
-	Engine              string            `json:"engine"`
+	ARN                 *string           `json:"arn"`
+	Name                *string           `json:"name"`
+	Size                *string           `json:"size"`
+	Engine              *string           `json:"engine"`
 	EngineVersion       *string           `json:"engine_version"`
 	Port                *int64            `json:"port"`
 	Cluster             *string           `json:"cluster"`
-	Public              bool              `json:"public"`
-	MultiAZ             bool              `json:"multi_az"`
+	Public              *bool             `json:"public"`
+	MultiAZ             *bool             `json:"multi_az"`
 	PromotionTier       *int64            `json:"promotion_tier"`
 	StorageType         *string           `json:"storage_type"`
 	StorageSize         *int64            `json:"storage_size"`
@@ -62,15 +62,15 @@ type Event struct {
 	DatabaseName        *string           `json:"database_name"`
 	DatabaseUsername    *string           `json:"database_username"`
 	DatabasePassword    *string           `json:"database_password"`
-	AutoUpgrade         bool              `json:"auto_upgrade"`
+	AutoUpgrade         *bool             `json:"auto_upgrade"`
 	BackupRetention     *int64            `json:"backup_retention"`
 	BackupWindow        *string           `json:"backup_window"`
 	MaintenanceWindow   *string           `json:"maintenance_window"`
-	FinalSnapshot       bool              `json:"final_snapshot"`
+	FinalSnapshot       *bool             `json:"final_snapshot"`
 	ReplicationSource   *string           `json:"replication_source"`
 	License             *string           `json:"license"`
 	Timezone            *string           `json:"timezone"`
-	Endpoint            string            `json:"endpoint"`
+	Endpoint            *string           `json:"endpoint"`
 	Tags                map[string]string `json:"tags"`
 	ErrorMessage        string            `json:"error,omitempty"`
 	Subject             string            `json:"-"`
@@ -101,15 +101,15 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterCredentialsInvalid
 	}
 
-	if ev.Name == "" {
+	if ev.Name == nil {
 		return ErrRDSInstanceNameInvalid
 	}
 
-	if ev.Engine == "" {
+	if ev.Engine == nil {
 		return ErrRDSInstanceEngineTypeInvalid
 	}
 
-	if ev.Size == "" {
+	if ev.Size == nil {
 		return ErrRDSInstanceSizeInvalid
 	}
 
@@ -170,16 +170,16 @@ func (ev *Event) Update() error {
 	}
 
 	req := &rds.ModifyDBInstanceInput{
-		DBInstanceIdentifier:       aws.String(ev.Name),
-		DBInstanceClass:            aws.String(ev.Size),
+		DBInstanceIdentifier:       ev.Name,
+		DBInstanceClass:            ev.Size,
 		EngineVersion:              ev.EngineVersion,
 		DBPortNumber:               ev.Port,
 		AllocatedStorage:           ev.StorageSize,
 		StorageType:                ev.StorageType,
 		Iops:                       ev.StorageIops,
-		MultiAZ:                    aws.Bool(ev.MultiAZ),
+		MultiAZ:                    ev.MultiAZ,
 		PromotionTier:              ev.PromotionTier,
-		AutoMinorVersionUpgrade:    aws.Bool(ev.AutoUpgrade),
+		AutoMinorVersionUpgrade:    ev.AutoUpgrade,
 		BackupRetentionPeriod:      ev.BackupRetention,
 		PreferredBackupWindow:      ev.BackupWindow,
 		PreferredMaintenanceWindow: ev.MaintenanceWindow,
@@ -187,7 +187,7 @@ func (ev *Event) Update() error {
 		MasterUserPassword:         ev.DatabasePassword,
 		DBSubnetGroupName:          subnetGroup,
 		LicenseModel:               ev.License,
-		PubliclyAccessible:         aws.Bool(ev.Public),
+		PubliclyAccessible:         ev.Public,
 		ApplyImmediately:           aws.Bool(true),
 	}
 
@@ -201,11 +201,11 @@ func (ev *Event) Delete() error {
 	svc := ev.getRDSClient()
 
 	req := &rds.DeleteDBInstanceInput{
-		DBInstanceIdentifier: aws.String(ev.Name),
+		DBInstanceIdentifier: ev.Name,
 	}
 
-	if ev.FinalSnapshot {
-		req.FinalDBSnapshotIdentifier = aws.String(ev.Name + "-Final-Snapshot")
+	if *ev.FinalSnapshot {
+		req.FinalDBSnapshotIdentifier = aws.String(*ev.Name + "-Final-Snapshot")
 	} else {
 		req.SkipFinalSnapshot = aws.Bool(true)
 	}
@@ -216,7 +216,7 @@ func (ev *Event) Delete() error {
 	}
 
 	waitreq := &rds.DescribeDBInstancesInput{
-		DBInstanceIdentifier: aws.String(ev.Name),
+		DBInstanceIdentifier: ev.Name,
 	}
 
 	err = svc.WaitUntilDBInstanceDeleted(waitreq)
@@ -248,19 +248,19 @@ func (ev *Event) GetSubject() string {
 
 func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 	req := &rds.CreateDBInstanceInput{
-		DBInstanceIdentifier:       aws.String(ev.Name),
-		DBInstanceClass:            aws.String(ev.Size),
-		Engine:                     aws.String(ev.Engine),
+		DBInstanceIdentifier:       ev.Name,
+		DBInstanceClass:            ev.Size,
+		Engine:                     ev.Engine,
 		EngineVersion:              ev.EngineVersion,
 		Port:                       ev.Port,
 		DBClusterIdentifier:        ev.Cluster,
 		AllocatedStorage:           ev.StorageSize,
 		StorageType:                ev.StorageType,
 		Iops:                       ev.StorageIops,
-		MultiAZ:                    aws.Bool(ev.MultiAZ),
+		MultiAZ:                    ev.MultiAZ,
 		PromotionTier:              ev.PromotionTier,
 		AvailabilityZone:           ev.AvailabilityZone,
-		AutoMinorVersionUpgrade:    aws.Bool(ev.AutoUpgrade),
+		AutoMinorVersionUpgrade:    ev.AutoUpgrade,
 		BackupRetentionPeriod:      ev.BackupRetention,
 		PreferredBackupWindow:      ev.BackupWindow,
 		PreferredMaintenanceWindow: ev.MaintenanceWindow,
@@ -270,7 +270,7 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 		MasterUserPassword:         ev.DatabasePassword,
 		DBSubnetGroupName:          subnetGroup,
 		LicenseModel:               ev.License,
-		PubliclyAccessible:         aws.Bool(ev.Public),
+		PubliclyAccessible:         ev.Public,
 		Timezone:                   ev.Timezone,
 	}
 
@@ -280,7 +280,7 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 	}
 
 	waitreq := &rds.DescribeDBInstancesInput{
-		DBInstanceIdentifier: aws.String(ev.Name),
+		DBInstanceIdentifier: ev.Name,
 	}
 
 	err = svc.WaitUntilDBInstanceAvailable(waitreq)
@@ -293,11 +293,11 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 		return err
 	}
 
-	ev.ARN = *resp.DBInstances[0].DBInstanceArn
+	ev.ARN = resp.DBInstances[0].DBInstanceArn
 
 	if resp.DBInstances[0].Endpoint != nil {
 		if resp.DBInstances[0].Endpoint.Address != nil {
-			ev.Endpoint = *resp.DBInstances[0].Endpoint.Address
+			ev.Endpoint = resp.DBInstances[0].Endpoint.Address
 		}
 	}
 
@@ -306,15 +306,15 @@ func (ev *Event) createPrimaryDB(svc *rds.RDS, subnetGroup *string) error {
 
 func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 	req := &rds.CreateDBInstanceReadReplicaInput{
-		AutoMinorVersionUpgrade:    aws.Bool(ev.AutoUpgrade),
+		AutoMinorVersionUpgrade:    ev.AutoUpgrade,
 		AvailabilityZone:           ev.AvailabilityZone,
-		DBInstanceIdentifier:       aws.String(ev.Name),
-		DBInstanceClass:            aws.String(ev.Size),
+		DBInstanceIdentifier:       ev.Name,
+		DBInstanceClass:            ev.Size,
 		DBSubnetGroupName:          subnetGroup,
 		StorageType:                ev.StorageType,
 		Iops:                       ev.StorageIops,
 		Port:                       ev.Port,
-		PubliclyAccessible:         aws.Bool(ev.Public),
+		PubliclyAccessible:         ev.Public,
 		SourceDBInstanceIdentifier: ev.ReplicationSource,
 	}
 
@@ -324,7 +324,7 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 	}
 
 	waitreq := &rds.DescribeDBInstancesInput{
-		DBInstanceIdentifier: aws.String(ev.Name),
+		DBInstanceIdentifier: ev.Name,
 	}
 
 	err = svc.WaitUntilDBInstanceAvailable(waitreq)
@@ -337,12 +337,10 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 		return err
 	}
 
-	ev.ARN = *resp.DBInstances[0].DBInstanceArn
+	ev.ARN = resp.DBInstances[0].DBInstanceArn
 
 	if resp.DBInstances[0].Endpoint != nil {
-		if resp.DBInstances[0].Endpoint.Address != nil {
-			ev.Endpoint = *resp.DBInstances[0].Endpoint.Address
-		}
+		ev.Endpoint = resp.DBInstances[0].Endpoint.Address
 	}
 
 	return ev.setTags()
@@ -364,8 +362,8 @@ func createSubnetGroup(ev *Event) (*string, error) {
 	}
 
 	req := &rds.CreateDBSubnetGroupInput{
-		DBSubnetGroupDescription: aws.String(ev.Name + "-sg"),
-		DBSubnetGroupName:        aws.String(ev.Name + "-sg"),
+		DBSubnetGroupDescription: aws.String(*ev.Name + "-sg"),
+		DBSubnetGroupName:        aws.String(*ev.Name + "-sg"),
 		SubnetIds:                ev.NetworkAWSIDs,
 	}
 
@@ -382,8 +380,8 @@ func updateSubnetGroup(ev *Event) (*string, error) {
 	}
 
 	req := &rds.ModifyDBSubnetGroupInput{
-		DBSubnetGroupName:        aws.String(ev.Name + "-sg"),
-		DBSubnetGroupDescription: aws.String(ev.Name + "-sg"),
+		DBSubnetGroupName:        aws.String(*ev.Name + "-sg"),
+		DBSubnetGroupDescription: aws.String(*ev.Name + "-sg"),
 		SubnetIds:                ev.NetworkAWSIDs,
 	}
 
@@ -396,7 +394,7 @@ func deleteSubnetGroup(ev *Event) error {
 	svc := ev.getRDSClient()
 
 	req := &rds.DeleteDBSubnetGroupInput{
-		DBSubnetGroupName: aws.String(ev.Name + "-sg"),
+		DBSubnetGroupName: aws.String(*ev.Name + "-sg"),
 	}
 
 	_, err := svc.DeleteDBSubnetGroup(req)
@@ -408,7 +406,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getRDSClient()
 
 	req := &rds.AddTagsToResourceInput{
-		ResourceName: &ev.ARN,
+		ResourceName: ev.ARN,
 	}
 
 	for key, val := range ev.Tags {

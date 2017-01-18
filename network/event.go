@@ -40,11 +40,11 @@ type Event struct {
 	AWSAccessKeyID     string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
 	VPCID              string            `json:"vpc_id"`
-	NetworkAWSID       string            `json:"network_aws_id,omitempty"`
-	Name               string            `json:"name"`
-	Subnet             string            `json:"range"`
-	IsPublic           bool              `json:"is_public"`
-	AvailabilityZone   string            `json:"availability_zone"`
+	NetworkAWSID       *string           `json:"network_aws_id,omitempty"`
+	Name               *string           `json:"name"`
+	Subnet             *string           `json:"range"`
+	IsPublic           *bool             `json:"is_public"`
+	AvailabilityZone   *string           `json:"availability_zone"`
 	Tags               map[string]string `json:"tags"`
 	ErrorMessage       string            `json:"error,omitempty"`
 	Subject            string            `json:"-"`
@@ -76,11 +76,11 @@ func (ev *Event) Validate() error {
 	}
 
 	if ev.Subject == "network.delete.aws" {
-		if ev.NetworkAWSID == "" {
+		if ev.NetworkAWSID == nil {
 			return ErrNetworkAWSIDInvalid
 		}
 	} else {
-		if ev.Subnet == "" {
+		if ev.Subnet == nil {
 			return ErrNetworkSubnetInvalid
 		}
 	}
@@ -122,8 +122,8 @@ func (ev *Event) Create() error {
 
 	req := ec2.CreateSubnetInput{
 		VpcId:            aws.String(ev.VPCID),
-		CidrBlock:        aws.String(ev.Subnet),
-		AvailabilityZone: aws.String(ev.AvailabilityZone),
+		CidrBlock:        ev.Subnet,
+		AvailabilityZone: ev.AvailabilityZone,
 	}
 
 	resp, err := svc.CreateSubnet(&req)
@@ -131,7 +131,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	if ev.IsPublic {
+	if *ev.IsPublic {
 		// Create Internet Gateway
 		gateway, err := ev.createInternetGateway(svc, ev.VPCID)
 		if err != nil {
@@ -161,8 +161,8 @@ func (ev *Event) Create() error {
 		}
 	}
 
-	ev.NetworkAWSID = *resp.Subnet.SubnetId
-	ev.AvailabilityZone = *resp.Subnet.AvailabilityZone
+	ev.NetworkAWSID = resp.Subnet.SubnetId
+	ev.AvailabilityZone = resp.Subnet.AvailabilityZone
 
 	return ev.setTags()
 }
@@ -182,7 +182,7 @@ func (ev *Event) Delete() error {
 	}
 
 	req := ec2.DeleteSubnetInput{
-		SubnetId: aws.String(ev.NetworkAWSID),
+		SubnetId: ev.NetworkAWSID,
 	}
 
 	_, err = svc.DeleteSubnet(&req)
@@ -340,7 +340,7 @@ func (ev *Event) createGatewayRoutes(svc *ec2.EC2, rt *ec2.RouteTable, gw *ec2.I
 	return nil
 }
 
-func (ev *Event) waitForInterfaceRemoval(svc *ec2.EC2, networkID string) error {
+func (ev *Event) waitForInterfaceRemoval(svc *ec2.EC2, networkID *string) error {
 	for {
 		resp, err := ev.getNetworkInterfaces(svc, networkID)
 		if err != nil {
@@ -355,11 +355,11 @@ func (ev *Event) waitForInterfaceRemoval(svc *ec2.EC2, networkID string) error {
 	}
 }
 
-func (ev *Event) getNetworkInterfaces(svc *ec2.EC2, networkID string) (*ec2.DescribeNetworkInterfacesOutput, error) {
+func (ev *Event) getNetworkInterfaces(svc *ec2.EC2, networkID *string) (*ec2.DescribeNetworkInterfacesOutput, error) {
 	f := []*ec2.Filter{
 		&ec2.Filter{
 			Name:   aws.String("subnet-id"),
-			Values: []*string{aws.String(networkID)},
+			Values: []*string{networkID},
 		},
 	}
 
@@ -374,7 +374,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
 	req := &ec2.CreateTagsInput{
-		Resources: []*string{&ev.NetworkAWSID},
+		Resources: []*string{ev.NetworkAWSID},
 	}
 
 	for key, val := range ev.Tags {

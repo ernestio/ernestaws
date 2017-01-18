@@ -36,7 +36,7 @@ type Records []Record
 func (r Records) HasRecord(entry string) bool {
 	// check with removed . character as well
 	for _, record := range r {
-		if entryName(record.Entry) == entryName(entry) {
+		if entryName(*record.Entry) == entryName(entry) {
 			return true
 		}
 	}
@@ -45,10 +45,10 @@ func (r Records) HasRecord(entry string) bool {
 
 // Record stores the entries for a zone
 type Record struct {
-	Entry  string   `json:"entry"`
-	Type   string   `json:"type"`
-	Values []string `json:"values"`
-	TTL    int64    `json:"ttl"`
+	Entry  *string   `json:"entry"`
+	Type   *string   `json:"type"`
+	Values []*string `json:"values"`
+	TTL    *int64    `json:"ttl"`
 }
 
 // Event stores the template data
@@ -56,9 +56,9 @@ type Event struct {
 	UUID               string            `json:"_uuid"`
 	BatchID            string            `json:"_batch_id"`
 	ProviderType       string            `json:"_type"`
-	HostedZoneID       string            `json:"hosted_zone_id"`
-	Name               string            `json:"name"`
-	Private            bool              `json:"private"`
+	HostedZoneID       *string           `json:"hosted_zone_id"`
+	Name               *string           `json:"name"`
+	Private            *bool             `json:"private"`
 	Records            Records           `json:"records"`
 	VPCID              string            `json:"vpc_id"`
 	DatacenterName     string            `json:"datacenter_name,omitempty"`
@@ -132,7 +132,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterCredentialsInvalid
 	}
 
-	if ev.Name == "" {
+	if ev.Name == nil {
 		return ErrZoneNameInvalid
 	}
 
@@ -150,12 +150,12 @@ func (ev *Event) Create() error {
 
 	req := &route53.CreateHostedZoneInput{
 		CallerReference: aws.String(uuid.NewV4().String()),
-		Name:            aws.String(ev.Name),
+		Name:            ev.Name,
 	}
 
-	if ev.Private == true {
+	if *ev.Private == true {
 		req.HostedZoneConfig = &route53.HostedZoneConfig{
-			PrivateZone: aws.Bool(ev.Private),
+			PrivateZone: ev.Private,
 		}
 		req.VPC = &route53.VPC{
 			VPCId:     aws.String(ev.VPCID),
@@ -168,7 +168,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	ev.HostedZoneID = *resp.HostedZone.Id
+	ev.HostedZoneID = resp.HostedZone.Id
 
 	return ev.Update()
 }
@@ -186,7 +186,7 @@ func (ev *Event) Update() error {
 		ChangeBatch: &route53.ChangeBatch{
 			Changes: ev.buildChanges(zr),
 		},
-		HostedZoneId: aws.String(ev.HostedZoneID),
+		HostedZoneId: ev.HostedZoneID,
 	}
 
 	_, err = svc.ChangeResourceRecordSets(req)
@@ -209,7 +209,7 @@ func (ev *Event) Delete() error {
 	svc := ev.getRoute53Client()
 
 	req := &route53.DeleteHostedZoneInput{
-		Id: aws.String(ev.HostedZoneID),
+		Id: ev.HostedZoneID,
 	}
 
 	_, err = svc.DeleteHostedZone(req)
@@ -234,7 +234,7 @@ func (ev *Event) getZoneRecords() ([]*route53.ResourceRecordSet, error) {
 	svc := ev.getRoute53Client()
 
 	req := &route53.ListResourceRecordSetsInput{
-		HostedZoneId: aws.String(ev.HostedZoneID),
+		HostedZoneId: ev.HostedZoneID,
 	}
 
 	resp, err := svc.ListResourceRecordSets(req)
@@ -245,12 +245,12 @@ func (ev *Event) getZoneRecords() ([]*route53.ResourceRecordSet, error) {
 	return resp.ResourceRecordSets, nil
 }
 
-func (ev *Event) buildResourceRecords(values []string) []*route53.ResourceRecord {
+func (ev *Event) buildResourceRecords(values []*string) []*route53.ResourceRecord {
 	var records []*route53.ResourceRecord
 
 	for _, v := range values {
 		records = append(records, &route53.ResourceRecord{
-			Value: aws.String(v),
+			Value: v,
 		})
 	}
 
@@ -270,7 +270,7 @@ func (ev *Event) buildRecordsToRemove(existing []*route53.ResourceRecordSet) []*
 
 	for _, recordSet := range existing {
 
-		if ev.Records.HasRecord(*recordSet.Name) != true && ev.isDefaultRule(ev.Name, recordSet) != true {
+		if ev.Records.HasRecord(*recordSet.Name) != true && ev.isDefaultRule(*ev.Name, recordSet) != true {
 			missing = append(missing, &route53.Change{
 				Action:            aws.String("DELETE"),
 				ResourceRecordSet: recordSet,
@@ -288,9 +288,9 @@ func (ev *Event) buildChanges(existing []*route53.ResourceRecordSet) []*route53.
 		changes = append(changes, &route53.Change{
 			Action: aws.String("UPSERT"),
 			ResourceRecordSet: &route53.ResourceRecordSet{
-				Name:            aws.String(record.Entry),
-				Type:            aws.String(record.Type),
-				TTL:             aws.Int64(record.TTL),
+				Name:            record.Entry,
+				Type:            record.Type,
+				TTL:             record.TTL,
 				ResourceRecords: ev.buildResourceRecords(record.Values),
 			},
 		})
@@ -312,7 +312,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getRoute53Client()
 
 	req := &route53.ChangeTagsForResourceInput{
-		ResourceId: &ev.HostedZoneID,
+		ResourceId: ev.HostedZoneID,
 	}
 
 	for key, val := range ev.Tags {
