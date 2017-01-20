@@ -108,14 +108,18 @@ func (col *Collection) Find() error {
 	}
 
 	for _, b := range resp.Buckets {
-		tags, _ := getBucketTagDescriptions(svc, b.Name)
-
-		grants, err := getBucketPermissions(svc, b.Name)
+		location, err := getBucketLocation(svc, b.Name)
 		if err != nil {
 			return err
 		}
 
-		location, err := getBucketLocation(svc, b.Name)
+		if *location != col.DatacenterRegion {
+			continue
+		}
+
+		tags, _ := getBucketTagDescriptions(svc, b.Name)
+
+		grants, err := getBucketPermissions(svc, b.Name)
 		if err != nil {
 			return err
 		}
