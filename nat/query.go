@@ -162,7 +162,7 @@ func toEvent(ng *ec2.NatGateway) *Event {
 	e := &Event{
 		VPCID:                  *ng.VpcId,
 		NatGatewayAWSID:        ng.NatGatewayId,
-		NetworkAWSID:           ng.SubnetId,
+		PublicNetworkAWSID:     ng.SubnetId,
 		NatGatewayAllocationID: id,
 		NatGatewayAllocationIP: ip,
 		//RoutedNetworksAWSIDs

@@ -42,7 +42,6 @@ type Event struct {
 	DatacenterRegion       string            `json:"datacenter_region"`
 	AWSAccessKeyID         string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey     string            `json:"aws_secret_access_key"`
-	NetworkAWSID           *string           `json:"network_aws_id"`
 	PublicNetwork          *string           `json:"public_network"`
 	PublicNetworkAWSID     *string           `json:"public_network_aws_id"`
 	RoutedNetworks         []string          `json:"routed_networks"`
