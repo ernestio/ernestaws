@@ -131,6 +131,11 @@ func (col *Collection) getEC2Client() *ec2.EC2 {
 func mapFilters(tags map[string]string) []*ec2.Filter {
 	var f []*ec2.Filter
 
+	f = append(f, &ec2.Filter{
+		Name:   aws.String("instance-state-name"),
+		Values: []*string{aws.String("running"), aws.String("stopped")},
+	})
+
 	for key, val := range tags {
 		f = append(f, &ec2.Filter{
 			Name:   aws.String("tag:" + key),
