@@ -427,18 +427,21 @@ func (ev *Event) ruleExists(rule *ec2.IpPermission, ruleset []*ec2.IpPermission)
 func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
-	req := &ec2.CreateTagsInput{
-		Resources: []*string{ev.SecurityGroupAWSID},
-	}
-
 	for key, val := range ev.Tags {
+		req := &ec2.CreateTagsInput{
+			Resources: []*string{ev.SecurityGroupAWSID},
+		}
+
 		req.Tags = append(req.Tags, &ec2.Tag{
 			Key:   &key,
 			Value: &val,
 		})
+
+		_, err := svc.CreateTags(req)
+		if err != nil {
+			return err
+		}
 	}
 
-	_, err := svc.CreateTags(req)
-
-	return err
+	return nil
 }

@@ -339,7 +339,7 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
-	if ev.ElasticIP != nil {
+	if ev.ElasticIPAWSID != nil {
 		rreq := &ec2.ReleaseAddressInput{
 			AllocationId: ev.ElasticIPAWSID,
 		}
@@ -458,20 +458,23 @@ func (ev *Event) attachVolumes() error {
 func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
-	req := &ec2.CreateTagsInput{
-		Resources: []*string{ev.InstanceAWSID},
-	}
-
 	for key, val := range ev.Tags {
+		req := &ec2.CreateTagsInput{
+			Resources: []*string{ev.InstanceAWSID},
+		}
+
 		req.Tags = append(req.Tags, &ec2.Tag{
 			Key:   &key,
 			Value: &val,
 		})
+
+		_, err := svc.CreateTags(req)
+		if err != nil {
+			return err
+		}
 	}
 
-	_, err := svc.CreateTags(req)
-
-	return err
+	return nil
 }
 
 func hasVolumeAttached(bdms []*ec2.InstanceBlockDeviceMapping, vol Volume) bool {

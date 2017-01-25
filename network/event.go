@@ -373,18 +373,21 @@ func (ev *Event) getNetworkInterfaces(svc *ec2.EC2, networkID *string) (*ec2.Des
 func (ev *Event) setTags() error {
 	svc := ev.getEC2Client()
 
-	req := &ec2.CreateTagsInput{
-		Resources: []*string{ev.NetworkAWSID},
-	}
-
 	for key, val := range ev.Tags {
+		req := &ec2.CreateTagsInput{
+			Resources: []*string{ev.NetworkAWSID},
+		}
+
 		req.Tags = append(req.Tags, &ec2.Tag{
 			Key:   &key,
 			Value: &val,
 		})
+
+		_, err := svc.CreateTags(req)
+		if err != nil {
+			return err
+		}
 	}
 
-	_, err := svc.CreateTags(req)
-
-	return err
+	return nil
 }
