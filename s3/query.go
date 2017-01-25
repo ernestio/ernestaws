@@ -220,12 +220,14 @@ func mapS3Grantees(grantees []*s3.Grant) []Grantee {
 
 // ToEvent converts an s3 bucket object to an ernest event
 func toEvent(b *s3.Bucket, grants []*s3.Grant, location *string, tags []*s3.Tag) *Event {
+	uri := fmt.Sprintf("https://%s.s3.amazonaws.com", *b.Name)
+
 	e := &Event{
 		Name:           b.Name,
 		Grantees:       mapS3Grantees(grants),
 		BucketLocation: location,
 		// ACL ???
-		BucketURI: fmt.Sprintf("https://%s.s3.amazonaws.com", b.Name),
+		BucketURI: &uri,
 		Tags:      mapS3Tags(tags),
 	}
 	return e
