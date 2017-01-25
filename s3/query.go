@@ -7,6 +7,7 @@ package s3
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -224,8 +225,8 @@ func toEvent(b *s3.Bucket, grants []*s3.Grant, location *string, tags []*s3.Tag)
 		Grantees:       mapS3Grantees(grants),
 		BucketLocation: location,
 		// ACL ???
-		// BucketURI
-		Tags: mapS3Tags(tags),
+		BucketURI: fmt.Sprintf("https://%s.s3.amazonaws.com", b.Name),
+		Tags:      mapS3Tags(tags),
 	}
 	return e
 }

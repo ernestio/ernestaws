@@ -197,7 +197,7 @@ func mapRDSSecurityGroups(sgroups []*rds.VpcSecurityGroupMembership) []*string {
 func toEvent(i *rds.DBInstance, tags []*rds.Tag) *Event {
 	e := &Event{
 		ARN:                 i.DBInstanceArn,
-		Name:                i.DBClusterIdentifier,
+		Name:                i.DBInstanceIdentifier,
 		Endpoint:            i.Endpoint.Address,
 		Port:                i.Endpoint.Port,
 		Engine:              i.Engine,

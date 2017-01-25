@@ -166,16 +166,20 @@ func mapAWSVolumes(vs []*ec2.InstanceBlockDeviceMapping) []Volume {
 
 // ToEvent converts an ec2 instance object to an ernest event
 func toEvent(i *ec2.Instance) *Event {
+	tags := mapEC2Tags(i.Tags)
+	name := tags["Name"]
+
 	return &Event{
-		NetworkAWSID:        i.SubnetId,
-		SecurityGroupAWSIDs: mapAWSSecurityGroupIDs(i.SecurityGroups),
 		InstanceAWSID:       i.InstanceId,
+		Name:                aws.String(name),
 		InstanceType:        i.InstanceType,
 		Image:               i.ImageId,
+		NetworkAWSID:        i.SubnetId,
+		SecurityGroupAWSIDs: mapAWSSecurityGroupIDs(i.SecurityGroups),
 		IP:                  i.PrivateIpAddress,
 		KeyPair:             i.KeyName,
 		PublicIP:            i.PublicIpAddress,
 		Volumes:             mapAWSVolumes(i.BlockDeviceMappings),
-		Tags:                mapEC2Tags(i.Tags),
+		Tags:                tags,
 	}
 }

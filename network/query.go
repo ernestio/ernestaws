@@ -151,9 +151,13 @@ func mapEC2Tags(input []*ec2.Tag) map[string]string {
 
 // ToEvent converts an ec2 subnet object to an ernest event
 func toEvent(n *ec2.Subnet) *Event {
+	tags := mapEC2Tags(n.Tags)
+	name := tags["Name"]
+
 	return &Event{
 		VPCID:            *n.VpcId,
 		NetworkAWSID:     n.SubnetId,
+		Name:             aws.String(name),
 		Subnet:           n.CidrBlock,
 		AvailabilityZone: n.AvailabilityZone,
 		Tags:             mapEC2Tags(n.Tags),
