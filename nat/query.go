@@ -109,7 +109,14 @@ func (col *Collection) Find() error {
 
 	// As tags aren't supported on nat gw's, we append all items to be filtered later.
 	for _, ng := range resp.NatGateways {
-		col.Results = append(col.Results, toEvent(ng))
+		e := toEvent(ng)
+
+		e.RoutedNetworkAWSIDs, err = col.getRoutedNetworks(e.NatGatewayAWSID)
+		if err != nil {
+			return err
+		}
+
+		col.Results = append(col.Results, e)
 	}
 
 	return nil
@@ -153,6 +160,35 @@ func getPublicAllocation(addresses []*ec2.NatGatewayAddress) (*string, *string) 
 		}
 	}
 	return nil, nil
+}
+
+func (col *Collection) getRoutedNetworks(gatewayID *string) ([]*string, error) {
+	var f []*ec2.Filter
+	var ids []*string
+
+	svc := col.getEC2Client()
+
+	f = append(f, &ec2.Filter{
+		Name:   aws.String("route.nat-gateway-id"),
+		Values: []*string{gatewayID},
+	})
+
+	req := &ec2.DescribeRouteTablesInput{
+		Filters: f,
+	}
+
+	resp, err := svc.DescribeRouteTables(req)
+	if err != nil {
+		return ids, err
+	}
+
+	for _, assoc := range resp.RouteTables[0].Associations {
+		if assoc.SubnetId != nil {
+			ids = append(ids, assoc.SubnetId)
+		}
+	}
+
+	return ids, err
 }
 
 // ToEvent converts an ec2 nat gateway object to an ernest event
