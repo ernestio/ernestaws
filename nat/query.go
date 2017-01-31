@@ -182,13 +182,11 @@ func (col *Collection) getRoutedNetworks(gatewayID *string) ([]*string, error) {
 		return ids, err
 	}
 
-	if len(resp.RouteTables) < 1 {
-		return ids, err
-	}
-
-	for _, assoc := range resp.RouteTables[0].Associations {
-		if assoc.SubnetId != nil {
-			ids = append(ids, assoc.SubnetId)
+	for _, rt := range resp.RouteTables {
+		for _, assoc := range rt.Associations {
+			if assoc.SubnetId != nil {
+				ids = append(ids, assoc.SubnetId)
+			}
 		}
 	}
 
