@@ -156,14 +156,17 @@ func mapAWSSecurityGroupIDs(gi []*ec2.GroupIdentifier) []*string {
 	return sgs
 }
 
-func mapAWSVolumes(vs []*ec2.InstanceBlockDeviceMapping) []Volume {
+func mapAWSVolumes(vs []*ec2.InstanceBlockDeviceMapping, rootDevice *string) []Volume {
 	var vols []Volume
 
 	for _, v := range vs {
-		vols = append(vols, Volume{
-			Device:      v.DeviceName,
-			VolumeAWSID: v.Ebs.VolumeId,
-		})
+		// omit root disk!
+		if *v.DeviceName != *rootDevice {
+			vols = append(vols, Volume{
+				Device:      v.DeviceName,
+				VolumeAWSID: v.Ebs.VolumeId,
+			})
+		}
 	}
 
 	return vols
@@ -184,7 +187,7 @@ func toEvent(i *ec2.Instance) *Event {
 		IP:                  i.PrivateIpAddress,
 		KeyPair:             i.KeyName,
 		PublicIP:            i.PublicIpAddress,
-		Volumes:             mapAWSVolumes(i.BlockDeviceMappings),
+		Volumes:             mapAWSVolumes(i.BlockDeviceMappings, i.RootDeviceName),
 		Tags:                tags,
 	}
 }
