@@ -312,7 +312,8 @@ func (ev *Event) setTags() error {
 	svc := ev.getRoute53Client()
 
 	req := &route53.ChangeTagsForResourceInput{
-		ResourceId: ev.HostedZoneID,
+		ResourceId:   ev.HostedZoneID,
+		ResourceType: aws.String("hostedzone"),
 	}
 
 	for key, val := range ev.Tags {
