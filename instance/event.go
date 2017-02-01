@@ -39,7 +39,7 @@ var (
 
 // Volume stores ebs volume data
 type Volume struct {
-	Name        *string `json:"name"`
+	Volume      *string `json:"volume"`
 	Device      *string `json:"device"`
 	VolumeAWSID *string `json:"volume_aws_id"`
 }
