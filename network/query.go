@@ -160,6 +160,7 @@ func toEvent(n *ec2.Subnet) *Event {
 		Name:             aws.String(name),
 		Subnet:           n.CidrBlock,
 		AvailabilityZone: n.AvailabilityZone,
+		IsPublic:         n.MapPublicIpOnLaunch,
 		Tags:             mapEC2Tags(n.Tags),
 	}
 }

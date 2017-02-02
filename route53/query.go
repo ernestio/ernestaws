@@ -193,16 +193,18 @@ func mapRecordValues(rv []*route53.ResourceRecord) []*string {
 	return values
 }
 
-func mapRoute53Records(records []*route53.ResourceRecordSet) []Record {
+func mapRoute53Records(name *string, records []*route53.ResourceRecordSet) []Record {
 	var zr []Record
 
 	for _, r := range records {
-		zr = append(zr, Record{
-			Entry:  r.Name,
-			Type:   r.Type,
-			TTL:    r.TTL,
-			Values: mapRecordValues(r.ResourceRecords),
-		})
+		if isDefaultRule(*name, r) != true {
+			zr = append(zr, Record{
+				Entry:  r.Name,
+				Type:   r.Type,
+				TTL:    r.TTL,
+				Values: mapRecordValues(r.ResourceRecords),
+			})
+		}
 	}
 
 	return zr
@@ -214,7 +216,7 @@ func toEvent(z *route53.HostedZone, records []*route53.ResourceRecordSet, tags [
 		HostedZoneID: z.Id,
 		Name:         z.Name,
 		Private:      z.Config.PrivateZone,
-		Records:      mapRoute53Records(records),
+		Records:      mapRoute53Records(z.Name, records),
 		Tags:         mapRoute53Tags(tags),
 	}
 	return e

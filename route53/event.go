@@ -257,7 +257,7 @@ func (ev *Event) buildResourceRecords(values []*string) []*route53.ResourceRecor
 	return records
 }
 
-func (ev *Event) isDefaultRule(name string, record *route53.ResourceRecordSet) bool {
+func isDefaultRule(name string, record *route53.ResourceRecordSet) bool {
 	return entryName(*record.Name) == entryName(name) && *record.Type == "SOA" ||
 		entryName(*record.Name) == entryName(name) && *record.Type == "NS"
 }
@@ -270,7 +270,7 @@ func (ev *Event) buildRecordsToRemove(existing []*route53.ResourceRecordSet) []*
 
 	for _, recordSet := range existing {
 
-		if ev.Records.HasRecord(*recordSet.Name) != true && ev.isDefaultRule(*ev.Name, recordSet) != true {
+		if ev.Records.HasRecord(*recordSet.Name) != true && isDefaultRule(*ev.Name, recordSet) != true {
 			missing = append(missing, &route53.Change{
 				Action:            aws.String("DELETE"),
 				ResourceRecordSet: recordSet,
