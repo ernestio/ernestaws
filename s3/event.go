@@ -161,7 +161,7 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	return nil
+	return ev.setTags()
 }
 
 // Update : Updates a nat object on aws
