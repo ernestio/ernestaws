@@ -198,6 +198,7 @@ func toEvent(i *rds.DBInstance, tags []*rds.Tag) *Event {
 	e := &Event{
 		ARN:                 i.DBInstanceArn,
 		Name:                i.DBInstanceIdentifier,
+		Size:                i.DBInstanceClass,
 		Endpoint:            i.Endpoint.Address,
 		Port:                i.Endpoint.Port,
 		Engine:              i.Engine,
