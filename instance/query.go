@@ -188,6 +188,7 @@ func toEvent(i *ec2.Instance) *Event {
 		KeyPair:             i.KeyName,
 		PublicIP:            i.PublicIpAddress,
 		Volumes:             mapAWSVolumes(i.BlockDeviceMappings, i.RootDeviceName),
+		VPCID:               *i.VpcId,
 		Tags:                tags,
 	}
 }

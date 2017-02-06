@@ -141,6 +141,7 @@ func (ev *Event) Delete() error {
 	req := ec2.DeleteVpcInput{
 		VpcId: ev.VpcID,
 	}
+
 	_, err := svc.DeleteVpc(&req)
 	if err != nil {
 		ev.ErrorMessage = "WARN : Could not remove the vpc - " + err.Error()
