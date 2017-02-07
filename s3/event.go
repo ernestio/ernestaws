@@ -255,6 +255,10 @@ func (ev *Event) getACL() (*s3.GetBucketAclOutput, error) {
 func (ev *Event) setTags() error {
 	svc := ev.getS3Client()
 
+	if len(ev.Tags) < 1 {
+		return nil
+	}
+
 	req := &s3.PutBucketTaggingInput{
 		Bucket: ev.Name,
 	}
