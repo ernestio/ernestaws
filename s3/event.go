@@ -45,7 +45,7 @@ type Event struct {
 	AWSAccessKeyID     string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
 	Name               *string           `json:"name"`
-	ACL                *string           `json:"acl"`
+	ACL                *string           `json:"acl,omitempty"`
 	BucketLocation     *string           `json:"bucket_location"`
 	BucketURI          *string           `json:"bucket_uri"`
 	Grantees           []Grantee         `json:"grantees"`
@@ -190,7 +190,8 @@ func (ev *Event) Update() error {
 		})
 	}
 
-	if stringEmpty(ev.ACL) {
+	if ev.ACL == nil {
+
 		grt, err := ev.getACL()
 		if err != nil {
 			return err
