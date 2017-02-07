@@ -191,14 +191,16 @@ func (ev *Event) Update() error {
 	}
 
 	if ev.ACL == nil {
-		grt, err := ev.getACL()
-		if err != nil {
-			return err
-		}
+		if *ev.ACL == "" {
+			grt, err := ev.getACL()
+			if err != nil {
+				return err
+			}
 
-		params.AccessControlPolicy = &s3.AccessControlPolicy{
-			Grants: grants,
-			Owner:  grt.Owner,
+			params.AccessControlPolicy = &s3.AccessControlPolicy{
+				Grants: grants,
+				Owner:  grt.Owner,
+			}
 		}
 	}
 
