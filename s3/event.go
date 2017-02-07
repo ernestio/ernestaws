@@ -164,7 +164,10 @@ func (ev *Event) Update() error {
 	s3client := ev.getS3Client()
 	params := &s3.PutBucketAclInput{
 		Bucket: ev.Name,
-		ACL:    ev.ACL,
+	}
+
+	if stringEmpty(ev.ACL) != true {
+		params.ACL = ev.ACL
 	}
 
 	var grants []*s3.Grant
@@ -190,8 +193,7 @@ func (ev *Event) Update() error {
 		})
 	}
 
-	if ev.ACL == nil {
-
+	if stringEmpty(ev.ACL) {
 		grt, err := ev.getACL()
 		if err != nil {
 			return err
