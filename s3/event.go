@@ -153,15 +153,10 @@ func (ev *Event) Create() error {
 	ev.BucketURI = resp.Location
 
 	if len(ev.Grantees) < 1 {
-		return nil
+		return ev.setTags()
 	}
 
-	err = ev.Update()
-	if err != nil {
-		return err
-	}
-
-	return ev.setTags()
+	return ev.Update()
 }
 
 // Update : Updates a nat object on aws
