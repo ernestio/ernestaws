@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -164,7 +166,7 @@ func (ev *Event) Create() error {
 func (ev *Event) Update() error {
 	svc := ev.getRDSClient()
 
-	subnetGroup, err := updateSubnetGroup(ev)
+	err := updateSubnetGroup(ev)
 	if err != nil {
 		return err
 	}
@@ -185,7 +187,6 @@ func (ev *Event) Update() error {
 		PreferredMaintenanceWindow: ev.MaintenanceWindow,
 		VpcSecurityGroupIds:        ev.SecurityGroupAWSIDs,
 		MasterUserPassword:         ev.DatabasePassword,
-		DBSubnetGroupName:          subnetGroup,
 		LicenseModel:               ev.License,
 		PubliclyAccessible:         ev.Public,
 		ApplyImmediately:           aws.Bool(true),
@@ -372,11 +373,20 @@ func createSubnetGroup(ev *Event) (*string, error) {
 	return req.DBSubnetGroupName, err
 }
 
-func updateSubnetGroup(ev *Event) (*string, error) {
+func updateSubnetGroup(ev *Event) error {
 	svc := ev.getRDSClient()
 
 	if len(ev.NetworkAWSIDs) < 1 {
-		return nil, nil
+		return nil
+	}
+
+	sg, err := getSubnetGroup(ev)
+	if err != nil {
+		return err
+	}
+
+	if subnetsHaveChanged(ev.NetworkAWSIDs, sg.Subnets) != true {
+		return nil
 	}
 
 	req := &rds.ModifyDBSubnetGroupInput{
@@ -385,9 +395,46 @@ func updateSubnetGroup(ev *Event) (*string, error) {
 		SubnetIds:                ev.NetworkAWSIDs,
 	}
 
-	_, err := svc.ModifyDBSubnetGroup(req)
+	_, err = svc.ModifyDBSubnetGroup(req)
 
-	return req.DBSubnetGroupName, err
+	return err
+}
+
+func subnetsHaveChanged(ids []*string, subnets []*rds.Subnet) bool {
+	var sids []*string
+	for _, s := range subnets {
+		sids = append(sids, s.SubnetIdentifier)
+	}
+
+	if len(ids) != len(sids) {
+		return true
+	}
+
+	idsx := ptrSliceToStrSlice(ids)
+	sidsx := ptrSliceToStrSlice(sids)
+	idsx.Sort()
+	sidsx.Sort()
+
+	return !reflect.DeepEqual(idsx, sidsx)
+}
+
+func getSubnetGroup(ev *Event) (*rds.DBSubnetGroup, error) {
+	svc := ev.getRDSClient()
+
+	req := &rds.DescribeDBSubnetGroupsInput{
+		DBSubnetGroupName: aws.String(*ev.Name + "-sg"),
+	}
+
+	resp, err := svc.DescribeDBSubnetGroups(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.DBSubnetGroups) < 1 {
+		return nil, err
+	}
+
+	return resp.DBSubnetGroups[0], nil
 }
 
 func deleteSubnetGroup(ev *Event) error {
@@ -419,4 +466,12 @@ func (ev *Event) setTags() error {
 	_, err := svc.AddTagsToResource(req)
 
 	return err
+}
+
+func ptrSliceToStrSlice(s []*string) sort.StringSlice {
+	var ds sort.StringSlice
+	for _, str := range s {
+		ds = append(ds, *str)
+	}
+	return ds
 }
