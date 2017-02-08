@@ -166,7 +166,7 @@ func (ev *Event) Create() error {
 func (ev *Event) Update() error {
 	svc := ev.getRDSClient()
 
-	subnetGroup, err := updateSubnetGroup(ev)
+	err := updateSubnetGroup(ev)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,6 @@ func (ev *Event) Update() error {
 		PreferredMaintenanceWindow: ev.MaintenanceWindow,
 		VpcSecurityGroupIds:        ev.SecurityGroupAWSIDs,
 		MasterUserPassword:         ev.DatabasePassword,
-		DBSubnetGroupName:          subnetGroup,
 		LicenseModel:               ev.License,
 		PubliclyAccessible:         ev.Public,
 		ApplyImmediately:           aws.Bool(true),
@@ -374,20 +373,20 @@ func createSubnetGroup(ev *Event) (*string, error) {
 	return req.DBSubnetGroupName, err
 }
 
-func updateSubnetGroup(ev *Event) (*string, error) {
+func updateSubnetGroup(ev *Event) error {
 	svc := ev.getRDSClient()
 
 	if len(ev.NetworkAWSIDs) < 1 {
-		return nil, nil
+		return nil
 	}
 
 	sg, err := getSubnetGroup(ev)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if subnetsHaveChanged(ev.NetworkAWSIDs, sg.Subnets) != true {
-		return nil, nil
+		return nil
 	}
 
 	req := &rds.ModifyDBSubnetGroupInput{
@@ -398,7 +397,7 @@ func updateSubnetGroup(ev *Event) (*string, error) {
 
 	_, err = svc.ModifyDBSubnetGroup(req)
 
-	return req.DBSubnetGroupName, err
+	return err
 }
 
 func subnetsHaveChanged(ids []*string, subnets []*rds.Subnet) bool {
