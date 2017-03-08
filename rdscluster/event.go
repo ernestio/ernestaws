@@ -33,33 +33,37 @@ var (
 
 // Event stores the network data
 type Event struct {
-	UUID                string            `json:"_uuid"`
-	BatchID             string            `json:"_batch_id"`
-	ProviderType        string            `json:"_type"`
-	DatacenterRegion    string            `json:"datacenter_region"`
-	AWSAccessKeyID      string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
-	VPCID               string            `json:"vpc_id"`
+	ProviderType        string            `json:"_provider"`
+	ComponentType       string            `json:"_component"`
+	ComponentID         string            `json:"_component_id"`
+	State               string            `json:"_state"`
+	Action              string            `json:"_action"`
 	ARN                 *string           `json:"arn"`
 	Name                *string           `json:"name"`
 	Engine              *string           `json:"engine"`
-	EngineVersion       *string           `json:"engine_version"`
-	Port                *int64            `json:"port"`
-	Endpoint            *string           `json:"endpoint"`
+	EngineVersion       *string           `json:"engine_version,omitempty"`
+	Port                *int64            `json:"port,omitempty"`
+	Endpoint            *string           `json:"endpoint,omitempty"`
 	AvailabilityZones   []*string         `json:"availability_zones"`
 	SecurityGroups      []string          `json:"security_groups"`
 	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
 	Networks            []string          `json:"networks"`
 	NetworkAWSIDs       []*string         `json:"network_aws_ids"`
-	DatabaseName        *string           `json:"database_name"`
-	DatabaseUsername    *string           `json:"database_username"`
-	DatabasePassword    *string           `json:"database_password"`
-	BackupRetention     *int64            `json:"backup_retention"`
-	BackupWindow        *string           `json:"backup_window"`
-	MaintenanceWindow   *string           `json:"maintenance_window"`
-	ReplicationSource   *string           `json:"replication_source"`
+	DatabaseName        *string           `json:"database_name,omitempty"`
+	DatabaseUsername    *string           `json:"database_username,omitempty"`
+	DatabasePassword    *string           `json:"database_password,omitempty"`
+	BackupRetention     *int64            `json:"backup_retention,omitempty"`
+	BackupWindow        *string           `json:"backup_window,omitempty"`
+	MaintenanceWindow   *string           `json:"maintenance_window,omitempty"`
+	ReplicationSource   *string           `json:"replication_source,omitempty"`
 	FinalSnapshot       *bool             `json:"final_snapshot"`
 	Tags                map[string]string `json:"tags"`
+	DatacenterType      string            `json:"datacenter_type"`
+	DatacenterName      string            `json:"datacenter_name"`
+	DatacenterRegion    string            `json:"datacenter_region"`
+	AccessKeyID         string            `json:"aws_access_key_id"`
+	SecretAccessKey     string            `json:"aws_secret_access_key"`
+	Service             string            `json:"service"`
 	ErrorMessage        string            `json:"error,omitempty"`
 	Subject             string            `json:"-"`
 	Body                []byte            `json:"-"`
@@ -77,15 +81,11 @@ func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
 
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
-	if ev.VPCID == "" {
-		return ErrDatacenterIDInvalid
-	}
-
 	if ev.DatacenterRegion == "" {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -237,7 +237,7 @@ func (ev *Event) GetSubject() string {
 }
 
 func (ev *Event) getRDSClient() *rds.RDS {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return rds.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

@@ -44,24 +44,29 @@ type Listener struct {
 
 // Event stores the template data
 type Event struct {
-	UUID                string            `json:"_uuid"`
-	BatchID             string            `json:"_batch_id"`
-	ProviderType        string            `json:"_type"`
-	DatacenterName      string            `json:"datacenter_name,omitempty"`
-	DatacenterRegion    string            `json:"datacenter_region"`
-	AWSAccessKeyID      string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
-	VPCID               string            `json:"vpc_id"`
-	ELBName             *string           `json:"name"`
-	ELBIsPrivate        *bool             `json:"is_private"`
-	ELBListeners        []Listener        `json:"listeners"`
-	ELBDNSName          *string           `json:"dns_name"`
+	ProviderType        string            `json:"_provider"`
+	ComponentType       string            `json:"_component"`
+	ComponentID         string            `json:"_component_id"`
+	State               string            `json:"_state"`
+	Action              string            `json:"_action"`
+	Name                *string           `json:"name"`
+	IsPrivate           *bool             `json:"is_private"`
+	Listeners           []Listener        `json:"listeners"`
+	DNSName             *string           `json:"dns_name"`
+	Instances           []string          `json:"instances"`
 	InstanceNames       []string          `json:"instance_names"`
 	InstanceAWSIDs      []*string         `json:"instance_aws_ids"`
+	Networks            []string          `json:"networks"`
 	NetworkAWSIDs       []*string         `json:"network_aws_ids"`
 	SecurityGroups      []string          `json:"security_groups"`
 	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
 	Tags                map[string]string `json:"tags"`
+	DatacenterType      string            `json:"datacenter_type,omitempty"`
+	DatacenterName      string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion    string            `json:"datacenter_region"`
+	AccessKeyID         string            `json:"aws_access_key_id"`
+	SecretAccessKey     string            `json:"aws_secret_access_key"`
+	Service             string            `json:"service"`
 	ErrorMessage        string            `json:"error,omitempty"`
 	Subject             string            `json:"-"`
 	Body                []byte            `json:"-"`
@@ -116,25 +121,21 @@ func (ev *Event) Error(err error) {
 
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
-	if ev.VPCID == "" {
-		return ErrDatacenterIDInvalid
-	}
-
 	if ev.DatacenterRegion == "" {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
-	if ev.ELBName == nil {
+	if ev.Name == nil {
 		return ErrELBNameInvalid
 	}
 
 	if ev.Subject != "elb.delete.aws" {
 		// Validate Ports
-		for _, listener := range ev.ELBListeners {
+		for _, listener := range ev.Listeners {
 			if listener.Protocol == nil {
 				return ErrELBProtocolInvalid
 			}
@@ -168,14 +169,14 @@ func (ev *Event) Create() error {
 
 	// Create Loadbalancer
 	req := elb.CreateLoadBalancerInput{
-		LoadBalancerName: ev.ELBName,
+		LoadBalancerName: ev.Name,
 		Listeners:        ev.mapListeners(),
 		Subnets:          ev.NetworkAWSIDs,
 		SecurityGroups:   ev.SecurityGroupAWSIDs,
 	}
 
-	if ev.ELBIsPrivate != nil {
-		if *ev.ELBIsPrivate {
+	if ev.IsPrivate != nil {
+		if *ev.IsPrivate {
 			req.Scheme = aws.String("internal")
 		}
 	}
@@ -185,11 +186,11 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	ev.ELBDNSName = resp.DNSName
+	ev.DNSName = resp.DNSName
 
 	// Add instances
 	ireq := elb.RegisterInstancesWithLoadBalancerInput{
-		LoadBalancerName: ev.ELBName,
+		LoadBalancerName: ev.Name,
 	}
 
 	for _, instance := range ev.InstanceAWSIDs {
@@ -211,7 +212,7 @@ func (ev *Event) Update() error {
 	svc := ev.getELBClient()
 
 	req := elb.DescribeLoadBalancersInput{
-		LoadBalancerNames: []*string{ev.ELBName},
+		LoadBalancerNames: []*string{ev.Name},
 	}
 
 	resp, err := svc.DescribeLoadBalancers(&req)
@@ -241,7 +242,7 @@ func (ev *Event) Update() error {
 		return err
 	}
 
-	err = ev.updateELBListeners(svc, lb, ev.ELBListeners)
+	err = ev.updateELBListeners(svc, lb, ev.Listeners)
 	if err != nil {
 		return err
 	}
@@ -255,7 +256,7 @@ func (ev *Event) Delete() error {
 
 	// Delete Loadbalancer
 	req := elb.DeleteLoadBalancerInput{
-		LoadBalancerName: ev.ELBName,
+		LoadBalancerName: ev.Name,
 	}
 
 	_, err := svc.DeleteLoadBalancer(&req)
@@ -274,7 +275,7 @@ func (ev *Event) Get() error {
 func (ev *Event) mapListeners() []*elb.Listener {
 	var l []*elb.Listener
 
-	for _, port := range ev.ELBListeners {
+	for _, port := range ev.Listeners {
 		l = append(l, &elb.Listener{
 			Protocol:         port.Protocol,
 			LoadBalancerPort: port.FromPort,
@@ -288,7 +289,7 @@ func (ev *Event) mapListeners() []*elb.Listener {
 }
 
 func (ev *Event) getELBClient() *elb.ELB {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return elb.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
@@ -519,7 +520,7 @@ func (ev *Event) setTags() error {
 	svc := ev.getELBClient()
 
 	req := &elb.AddTagsInput{
-		LoadBalancerNames: []*string{ev.ELBName},
+		LoadBalancerNames: []*string{ev.Name},
 	}
 
 	for key, val := range ev.Tags {

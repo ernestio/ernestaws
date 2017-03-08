@@ -46,29 +46,35 @@ type Volume struct {
 
 // Event stores the template data
 type Event struct {
-	UUID                string            `json:"_uuid"`
-	BatchID             string            `json:"_batch_id"`
-	ProviderType        string            `json:"_type"`
-	VPCID               string            `json:"vpc_id"`
-	DatacenterRegion    string            `json:"datacenter_region"`
-	AWSAccessKeyID      string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
-	NetworkAWSID        *string           `json:"network_aws_id"`
-	NetworkIsPublic     *bool             `json:"network_is_public"`
-	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
-	InstanceAWSID       *string           `json:"instance_aws_id,omitempty"`
+	ProviderType        string            `json:"_provider"`
+	ComponentType       string            `json:"_component"`
+	ComponentID         string            `json:"_component_id"`
+	State               string            `json:"_state"`
+	Action              string            `json:"_action"`
+	InstanceAWSID       *string           `json:"instance_aws_id"`
 	Name                *string           `json:"name"`
+	Type                *string           `json:"instance_type"`
 	Image               *string           `json:"image"`
-	InstanceType        *string           `json:"instance_type"`
 	IP                  *string           `json:"ip"`
-	KeyPair             *string           `json:"key_pair"`
-	UserData            *string           `json:"user_data"`
 	PublicIP            *string           `json:"public_ip"`
 	ElasticIP           *string           `json:"elastic_ip"`
-	ElasticIPAWSID      *string           `json:"elastic_ip_aws_id"`
+	ElasticIPAWSID      *string           `json:"elastic_ip_aws_id,omitempty"`
 	AssignElasticIP     *bool             `json:"assign_elastic_ip"`
+	KeyPair             *string           `json:"key_pair"`
+	UserData            *string           `json:"user_data"`
+	Network             *string           `json:"network_name"`
+	NetworkAWSID        *string           `json:"network_aws_id"`
+	NetworkIsPublic     *bool             `json:"network_is_public"`
+	SecurityGroups      []string          `json:"security_groups"`
+	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
 	Volumes             []Volume          `json:"volumes"`
 	Tags                map[string]string `json:"tags"`
+	DatacenterType      string            `json:"datacenter_type,omitempty"`
+	DatacenterName      string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion    string            `json:"datacenter_region"`
+	AccessKeyID         string            `json:"aws_access_key_id"`
+	SecretAccessKey     string            `json:"aws_secret_access_key"`
+	Service             string            `json:"service"`
 	ErrorMessage        string            `json:"error,omitempty"`
 	Subject             string            `json:"-"`
 	Body                []byte            `json:"-"`
@@ -123,15 +129,11 @@ func (ev *Event) Error(err error) {
 
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
-	if ev.VPCID == "" {
-		return ErrDatacenterIDInvalid
-	}
-
 	if ev.DatacenterRegion == "" {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -155,7 +157,7 @@ func (ev *Event) Validate() error {
 		return ErrInstanceImageInvalid
 	}
 
-	if ev.InstanceType == nil {
+	if ev.Type == nil {
 		return ErrInstanceTypeInvalid
 	}
 
@@ -174,7 +176,7 @@ func (ev *Event) Create() error {
 	req := ec2.RunInstancesInput{
 		SubnetId:         ev.NetworkAWSID,
 		ImageId:          ev.Image,
-		InstanceType:     ev.InstanceType,
+		InstanceType:     ev.Type,
 		PrivateIpAddress: ev.IP,
 		KeyName:          ev.KeyPair,
 		MaxCount:         aws.Int64(1),
@@ -263,7 +265,7 @@ func (ev *Event) Update() error {
 	req := ec2.ModifyInstanceAttributeInput{
 		InstanceId: ev.InstanceAWSID,
 		InstanceType: &ec2.AttributeValue{
-			Value: ev.InstanceType,
+			Value: ev.Type,
 		},
 	}
 
@@ -356,7 +358,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getEC2Client() *ec2.EC2 {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return ec2.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

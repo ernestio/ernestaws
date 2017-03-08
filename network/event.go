@@ -33,23 +33,29 @@ var (
 
 // Event stores the network data
 type Event struct {
-	UUID               string            `json:"_uuid"`
-	BatchID            string            `json:"_batch_id"`
-	ProviderType       string            `json:"_type"`
-	DatacenterRegion   string            `json:"datacenter_region"`
-	AWSAccessKeyID     string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
-	VPCID              string            `json:"vpc_id"`
-	NetworkAWSID       *string           `json:"network_aws_id,omitempty"`
-	Name               *string           `json:"name"`
-	Subnet             *string           `json:"range"`
-	IsPublic           *bool             `json:"is_public"`
-	AvailabilityZone   *string           `json:"availability_zone"`
-	Tags               map[string]string `json:"tags"`
-	ErrorMessage       string            `json:"error,omitempty"`
-	Subject            string            `json:"-"`
-	Body               []byte            `json:"-"`
-	CryptoKey          string            `json:"-"`
+	ProviderType     string            `json:"_provider"`
+	ComponentType    string            `json:"_component"`
+	ComponentID      string            `json:"_component_id"`
+	State            string            `json:"_state"`
+	Action           string            `json:"_action"`
+	NetworkAWSID     *string           `json:"network_aws_id"`
+	Name             *string           `json:"name"`
+	Subnet           *string           `json:"range"`
+	IsPublic         *bool             `json:"is_public"`
+	AvailabilityZone *string           `json:"availability_zone"`
+	Tags             map[string]string `json:"tags"`
+	DatacenterType   string            `json:"datacenter_type"`
+	DatacenterName   string            `json:"datacenter_name"`
+	DatacenterRegion string            `json:"datacenter_region"`
+	AccessKeyID      string            `json:"aws_access_key_id"`
+	SecretAccessKey  string            `json:"aws_secret_access_key"`
+	Vpc              string            `json:"vpc"`
+	VpcID            string            `json:"vpc_id"`
+	Service          string            `json:"service"`
+	ErrorMessage     string            `json:"error,omitempty"`
+	Subject          string            `json:"-"`
+	Body             []byte            `json:"-"`
+	CryptoKey        string            `json:"-"`
 }
 
 // New : Constructor
@@ -63,7 +69,7 @@ func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
 
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
-	if ev.VPCID == "" {
+	if ev.VpcID == "" {
 		return ErrDatacenterIDInvalid
 	}
 
@@ -71,7 +77,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -121,7 +127,7 @@ func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
 
 	req := ec2.CreateSubnetInput{
-		VpcId:            aws.String(ev.VPCID),
+		VpcId:            aws.String(ev.VpcID),
 		CidrBlock:        ev.Subnet,
 		AvailabilityZone: ev.AvailabilityZone,
 	}
@@ -133,13 +139,13 @@ func (ev *Event) Create() error {
 
 	if *ev.IsPublic {
 		// Create Internet Gateway
-		gateway, err := ev.createInternetGateway(svc, ev.VPCID)
+		gateway, err := ev.createInternetGateway(svc, ev.VpcID)
 		if err != nil {
 			return err
 		}
 
 		// Create Route Table and direct traffic to Internet Gateway
-		rt, err := ev.createRouteTable(svc, ev.VPCID, *resp.Subnet.SubnetId)
+		rt, err := ev.createRouteTable(svc, ev.VpcID, *resp.Subnet.SubnetId)
 		if err != nil {
 			return err
 		}
@@ -210,7 +216,7 @@ func (ev *Event) GetSubject() string {
 }
 
 func (ev *Event) getEC2Client() *ec2.EC2 {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return ec2.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

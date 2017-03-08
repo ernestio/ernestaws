@@ -155,7 +155,7 @@ func toEvent(n *ec2.Subnet) *Event {
 	name := tags["Name"]
 
 	return &Event{
-		VPCID:            *n.VpcId,
+		VpcID:            *n.VpcId,
 		NetworkAWSID:     n.SubnetId,
 		Name:             aws.String(name),
 		Subnet:           n.CidrBlock,
