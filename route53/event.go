@@ -53,23 +53,27 @@ type Record struct {
 
 // Event stores the template data
 type Event struct {
-	UUID               string            `json:"_uuid"`
-	BatchID            string            `json:"_batch_id"`
-	ProviderType       string            `json:"_type"`
-	HostedZoneID       *string           `json:"hosted_zone_id"`
-	Name               *string           `json:"name"`
-	Private            *bool             `json:"private"`
-	Records            Records           `json:"records"`
-	VPCID              string            `json:"vpc_id"`
-	DatacenterName     string            `json:"datacenter_name,omitempty"`
-	DatacenterRegion   string            `json:"datacenter_region"`
-	AWSAccessKeyID     string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
-	ErrorMessage       string            `json:"error,omitempty"`
-	Tags               map[string]string `json:"tags"`
-	Subject            string            `json:"-"`
-	Body               []byte            `json:"-"`
-	CryptoKey          string            `json:"-"`
+	ProviderType     string            `json:"_provider"`
+	ComponentType    string            `json:"_component"`
+	ComponentID      string            `json:"_component_id"`
+	State            string            `json:"_state"`
+	Action           string            `json:"_action"`
+	HostedZoneID     *string           `json:"hosted_zone_id"`
+	Name             *string           `json:"name"`
+	Private          *bool             `json:"private"`
+	Records          Records           `json:"records"`
+	VpcID            *string           `json:"vpc_id"`
+	Tags             map[string]string `json:"tags"`
+	DatacenterType   string            `json:"datacenter_type"`
+	DatacenterName   string            `json:"datacenter_name"`
+	DatacenterRegion string            `json:"datacenter_region"`
+	AccessKeyID      string            `json:"aws_access_key_id"`
+	SecretAccessKey  string            `json:"aws_secret_access_key"`
+	Service          string            `json:"service"`
+	ErrorMessage     string            `json:"error,omitempty"`
+	Subject          string            `json:"-"`
+	Body             []byte            `json:"-"`
+	CryptoKey        string            `json:"-"`
 }
 
 // New : Constructor
@@ -120,15 +124,11 @@ func (ev *Event) Error(err error) {
 
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
-	if ev.VPCID == "" {
-		return ErrDatacenterIDInvalid
-	}
-
 	if ev.DatacenterRegion == "" {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -158,7 +158,7 @@ func (ev *Event) Create() error {
 			PrivateZone: ev.Private,
 		}
 		req.VPC = &route53.VPC{
-			VPCId:     aws.String(ev.VPCID),
+			VPCId:     ev.VpcID,
 			VPCRegion: aws.String(ev.DatacenterRegion),
 		}
 	}
@@ -223,7 +223,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getRoute53Client() *route53.Route53 {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return route53.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

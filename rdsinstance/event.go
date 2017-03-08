@@ -36,44 +36,48 @@ var (
 
 // Event stores the network data
 type Event struct {
-	UUID                string            `json:"_uuid"`
-	BatchID             string            `json:"_batch_id"`
-	ProviderType        string            `json:"_type"`
-	DatacenterRegion    string            `json:"datacenter_region"`
-	AWSAccessKeyID      string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey  string            `json:"aws_secret_access_key"`
-	VPCID               string            `json:"vpc_id"`
+	ProviderType        string            `json:"_provider"`
+	ComponentType       string            `json:"_component"`
+	ComponentID         string            `json:"_component_id"`
+	State               string            `json:"_state"`
+	Action              string            `json:"_action"`
 	ARN                 *string           `json:"arn"`
 	Name                *string           `json:"name"`
 	Size                *string           `json:"size"`
 	Engine              *string           `json:"engine"`
-	EngineVersion       *string           `json:"engine_version"`
-	Port                *int64            `json:"port"`
-	Cluster             *string           `json:"cluster"`
+	EngineVersion       *string           `json:"engine_version,omitempty"`
+	Port                *int64            `json:"port,omitempty"`
+	Cluster             *string           `json:"cluster,omitempty"`
 	Public              *bool             `json:"public"`
+	Endpoint            *string           `json:"endpoint,omitempty"`
 	MultiAZ             *bool             `json:"multi_az"`
-	PromotionTier       *int64            `json:"promotion_tier"`
-	StorageType         *string           `json:"storage_type"`
-	StorageSize         *int64            `json:"storage_size"`
-	StorageIops         *int64            `json:"storage_iops"`
-	AvailabilityZone    *string           `json:"availability_zone"`
+	PromotionTier       *int64            `json:"promotion_tier,omitempty"`
+	StorageType         *string           `json:"storage_type,omitempty"`
+	StorageSize         *int64            `json:"storage_size,omitempty"`
+	StorageIops         *int64            `json:"storage_iops,omitempty"`
+	AvailabilityZone    *string           `json:"availability_zone,omitempty"`
 	SecurityGroups      []string          `json:"security_groups"`
 	SecurityGroupAWSIDs []*string         `json:"security_group_aws_ids"`
 	Networks            []string          `json:"networks"`
 	NetworkAWSIDs       []*string         `json:"network_aws_ids"`
-	DatabaseName        *string           `json:"database_name"`
-	DatabaseUsername    *string           `json:"database_username"`
-	DatabasePassword    *string           `json:"database_password"`
+	DatabaseName        *string           `json:"database_name,omitempty"`
+	DatabaseUsername    *string           `json:"database_username,omitempty"`
+	DatabasePassword    *string           `json:"database_password,omitempty"`
 	AutoUpgrade         *bool             `json:"auto_upgrade"`
-	BackupRetention     *int64            `json:"backup_retention"`
-	BackupWindow        *string           `json:"backup_window"`
-	MaintenanceWindow   *string           `json:"maintenance_window"`
+	BackupRetention     *int64            `json:"backup_retention,omitempty"`
+	BackupWindow        *string           `json:"backup_window,omitempty"`
+	MaintenanceWindow   *string           `json:"maintenance_window,omitempty"`
 	FinalSnapshot       *bool             `json:"final_snapshot"`
-	ReplicationSource   *string           `json:"replication_source"`
-	License             *string           `json:"license"`
-	Timezone            *string           `json:"timezone"`
-	Endpoint            *string           `json:"endpoint"`
+	ReplicationSource   *string           `json:"replication_source,omitempty"`
+	License             *string           `json:"license,omitempty"`
+	Timezone            *string           `json:"timezone,omitempty"`
 	Tags                map[string]string `json:"tags"`
+	DatacenterType      string            `json:"datacenter_type"`
+	DatacenterName      string            `json:"datacenter_name"`
+	DatacenterRegion    string            `json:"datacenter_region"`
+	AccessKeyID         string            `json:"aws_access_key_id"`
+	SecretAccessKey     string            `json:"aws_secret_access_key"`
+	Service             string            `json:"service"`
 	ErrorMessage        string            `json:"error,omitempty"`
 	Subject             string            `json:"-"`
 	Body                []byte            `json:"-"`
@@ -91,15 +95,11 @@ func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
 
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
-	if ev.VPCID == "" {
-		return ErrDatacenterIDInvalid
-	}
-
 	if ev.DatacenterRegion == "" {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -348,7 +348,7 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 }
 
 func (ev *Event) getRDSClient() *rds.RDS {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return rds.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

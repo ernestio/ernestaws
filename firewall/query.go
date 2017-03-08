@@ -152,14 +152,14 @@ func mapEC2Tags(input []*ec2.Tag) map[string]string {
 // toEvent converts an ec2 security group object to an ernest event
 func toEvent(sg *ec2.SecurityGroup) *Event {
 	e := &Event{
-		VPCID:              *sg.VpcId,
+		VpcID:              *sg.VpcId,
 		SecurityGroupAWSID: sg.GroupId,
-		SecurityGroupName:  sg.GroupName,
+		Name:               sg.GroupName,
 		Tags:               mapEC2Tags(sg.Tags),
 	}
 
-	e.SecurityGroupRules.Ingress = mapSecurityGroupRules(sg.IpPermissions)
-	e.SecurityGroupRules.Egress = mapSecurityGroupRules(sg.IpPermissionsEgress)
+	e.Rules.Ingress = mapSecurityGroupRules(sg.IpPermissions)
+	e.Rules.Egress = mapSecurityGroupRules(sg.IpPermissionsEgress)
 	return e
 }
 

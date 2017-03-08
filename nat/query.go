@@ -198,7 +198,7 @@ func toEvent(ng *ec2.NatGateway) *Event {
 	id, ip := getPublicAllocation(ng.NatGatewayAddresses)
 
 	e := &Event{
-		VPCID:                  *ng.VpcId,
+		VpcID:                  *ng.VpcId,
 		NatGatewayAWSID:        ng.NatGatewayId,
 		PublicNetworkAWSID:     ng.SubnetId,
 		NatGatewayAllocationID: id,

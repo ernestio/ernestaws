@@ -37,23 +37,27 @@ type Grantee struct {
 
 // Event stores the template data
 type Event struct {
-	UUID               string            `json:"_uuid"`
-	BatchID            string            `json:"_batch_id"`
-	ProviderType       string            `json:"_type"`
-	DatacenterName     string            `json:"datacenter_name,omitempty"`
-	DatacenterRegion   string            `json:"datacenter_region"`
-	AWSAccessKeyID     string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
-	Name               *string           `json:"name"`
-	ACL                *string           `json:"acl,omitempty"`
-	BucketLocation     *string           `json:"bucket_location"`
-	BucketURI          *string           `json:"bucket_uri"`
-	Grantees           []Grantee         `json:"grantees"`
-	Tags               map[string]string `json:"tags"`
-	ErrorMessage       string            `json:"error,omitempty"`
-	Subject            string            `json:"-"`
-	Body               []byte            `json:"-"`
-	CryptoKey          string            `json:"-"`
+	ProviderType     string            `json:"_provider"`
+	ComponentType    string            `json:"_component"`
+	ComponentID      string            `json:"_component_id"`
+	State            string            `json:"_state"`
+	Action           string            `json:"_action"`
+	Name             *string           `json:"name"`
+	ACL              *string           `json:"acl"`
+	BucketLocation   *string           `json:"bucket_location"`
+	BucketURI        *string           `json:"bucket_uri"`
+	Grantees         []Grantee         `json:"grantees,omitempty"`
+	Tags             map[string]string `json:"tags"`
+	DatacenterType   string            `json:"datacenter_type,omitempty"`
+	DatacenterName   string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion string            `json:"datacenter_region"`
+	AccessKeyID      string            `json:"aws_access_key_id"`
+	SecretAccessKey  string            `json:"aws_secret_access_key"`
+	Service          string            `json:"service"`
+	ErrorMessage     string            `json:"error,omitempty"`
+	Subject          string            `json:"-"`
+	Body             []byte            `json:"-"`
+	CryptoKey        string            `json:"-"`
 }
 
 // New : Constructor
@@ -108,7 +112,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -230,7 +234,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getS3Client() *s3.S3 {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	s3client := s3.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

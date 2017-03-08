@@ -50,25 +50,31 @@ type rule struct {
 
 // Event stores the template data
 type Event struct {
-	UUID               string  `json:"_uuid"`
-	BatchID            string  `json:"_batch_id"`
-	ProviderType       string  `json:"_type"`
-	VPCID              string  `json:"vpc_id"`
-	DatacenterRegion   string  `json:"datacenter_region"`
-	AWSAccessKeyID     string  `json:"aws_access_key_id"`
-	AWSSecretAccessKey string  `json:"aws_secret_access_key"`
-	NetworkAWSID       *string `json:"network_aws_id"`
+	ProviderType       string  `json:"_provider"`
+	ComponentType      string  `json:"_component"`
+	ComponentID        string  `json:"_component_id"`
+	State              string  `json:"_state"`
+	Action             string  `json:"_action"`
 	SecurityGroupAWSID *string `json:"security_group_aws_id,omitempty"`
-	SecurityGroupName  *string `json:"name"`
-	SecurityGroupRules struct {
+	Name               *string `json:"name"`
+	NetworkAWSID       *string `json:"network_aws_id"`
+	Rules              struct {
 		Ingress []rule `json:"ingress"`
 		Egress  []rule `json:"egress"`
 	} `json:"rules"`
-	Tags         map[string]string `json:"tags"`
-	ErrorMessage string            `json:"error,omitempty"`
-	Subject      string            `json:"-"`
-	Body         []byte            `json:"-"`
-	CryptoKey    string            `json:"-"`
+	Tags             map[string]string `json:"tags"`
+	DatacenterType   string            `json:"datacenter_type,omitempty"`
+	DatacenterName   string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion string            `json:"datacenter_region"`
+	AccessKeyID      string            `json:"aws_access_key_id"`
+	SecretAccessKey  string            `json:"aws_secret_access_key"`
+	Vpc              string            `json:"vpc"`
+	VpcID            string            `json:"vpc_id"`
+	Service          string            `json:"service"`
+	ErrorMessage     string            `json:"error,omitempty"`
+	Subject          string            `json:"-"`
+	Body             []byte            `json:"-"`
+	CryptoKey        string            `json:"-"`
 }
 
 // New : Constructor
@@ -119,7 +125,7 @@ func (ev *Event) Error(err error) {
 
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
-	if ev.VPCID == "" {
+	if ev.VpcID == "" {
 		return ErrDatacenterIDInvalid
 	}
 
@@ -127,7 +133,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -137,14 +143,14 @@ func (ev *Event) Validate() error {
 		}
 	}
 	if ev.Subject != "firewall.delete.aws" {
-		if ev.SecurityGroupName == nil {
+		if ev.Name == nil {
 			return ErrSGNameInvalid
 		}
 
-		if len(ev.SecurityGroupRules.Egress) < 1 && len(ev.SecurityGroupRules.Egress) < 1 {
+		if len(ev.Rules.Egress) < 1 && len(ev.Rules.Egress) < 1 {
 			return ErrSGRulesInvalid
 		}
-		for _, rule := range ev.SecurityGroupRules.Ingress {
+		for _, rule := range ev.Rules.Ingress {
 			if rule.IP == nil {
 				return ErrSGRuleIPInvalid
 			}
@@ -159,7 +165,7 @@ func (ev *Event) Validate() error {
 			}
 		}
 
-		for _, rule := range ev.SecurityGroupRules.Egress {
+		for _, rule := range ev.Rules.Egress {
 			if rule.IP == nil {
 				return ErrSGRuleIPInvalid
 			}
@@ -189,9 +195,9 @@ func (ev *Event) Create() error {
 
 	// Create SecurityGroup
 	req := ec2.CreateSecurityGroupInput{
-		VpcId:       aws.String(ev.VPCID),
-		GroupName:   ev.SecurityGroupName,
-		Description: ev.SecurityGroupName,
+		VpcId:       aws.String(ev.VpcID),
+		GroupName:   ev.Name,
+		Description: ev.Name,
 	}
 
 	resp, err := svc.CreateSecurityGroup(&req)
@@ -208,10 +214,10 @@ func (ev *Event) Create() error {
 	}
 
 	// Authorize Ingress
-	if len(ev.SecurityGroupRules.Ingress) > 0 {
+	if len(ev.Rules.Ingress) > 0 {
 		iReq := ec2.AuthorizeSecurityGroupIngressInput{
 			GroupId:       ev.SecurityGroupAWSID,
-			IpPermissions: ev.buildPermissions(ev.SecurityGroupRules.Ingress),
+			IpPermissions: ev.buildPermissions(ev.Rules.Ingress),
 		}
 
 		_, err = svc.AuthorizeSecurityGroupIngress(&iReq)
@@ -221,10 +227,10 @@ func (ev *Event) Create() error {
 	}
 
 	// Authorize Egress
-	if len(ev.SecurityGroupRules.Egress) > 0 {
+	if len(ev.Rules.Egress) > 0 {
 		eReq := ec2.AuthorizeSecurityGroupEgressInput{
 			GroupId:       ev.SecurityGroupAWSID,
-			IpPermissions: ev.buildPermissions(ev.SecurityGroupRules.Egress),
+			IpPermissions: ev.buildPermissions(ev.Rules.Egress),
 		}
 
 		_, err = svc.AuthorizeSecurityGroupEgress(&eReq)
@@ -246,8 +252,8 @@ func (ev *Event) Update() error {
 	}
 
 	// generate the new rulesets
-	newIngressRules := ev.buildPermissions(ev.SecurityGroupRules.Ingress)
-	newEgressRules := ev.buildPermissions(ev.SecurityGroupRules.Egress)
+	newIngressRules := ev.buildPermissions(ev.Rules.Ingress)
+	newEgressRules := ev.buildPermissions(ev.Rules.Egress)
 
 	// generate the rules to remove
 	revokeIngressRules := ev.buildRevokePermissions(sg.IpPermissions, newIngressRules)
@@ -333,7 +339,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getEC2Client() *ec2.EC2 {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return ec2.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

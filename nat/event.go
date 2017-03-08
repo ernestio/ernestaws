@@ -35,22 +35,28 @@ var (
 
 // Event stores the nat data
 type Event struct {
-	UUID                   string            `json:"_uuid"`
-	BatchID                string            `json:"_batch_id"`
-	ProviderType           string            `json:"_type"`
-	VPCID                  string            `json:"vpc_id"`
-	DatacenterRegion       string            `json:"datacenter_region"`
-	AWSAccessKeyID         string            `json:"aws_access_key_id"`
-	AWSSecretAccessKey     string            `json:"aws_secret_access_key"`
-	PublicNetwork          *string           `json:"public_network"`
-	PublicNetworkAWSID     *string           `json:"public_network_aws_id"`
+	ProviderType           string            `json:"_provider"`
+	ComponentType          string            `json:"_component"`
+	ComponentID            string            `json:"_component_id"`
+	State                  string            `json:"_state"`
+	Action                 string            `json:"_action"`
+	NatGatewayAWSID        *string           `json:"nat_gateway_aws_id"`
+	Name                   *string           `json:"name"`
+	PublicNetwork          string            `json:"public_network"`
 	RoutedNetworks         []string          `json:"routed_networks"`
 	RoutedNetworkAWSIDs    []*string         `json:"routed_networks_aws_ids"`
-	NatGatewayAWSID        *string           `json:"nat_gateway_aws_id"`
+	PublicNetworkAWSID     *string           `json:"public_network_aws_id"`
 	NatGatewayAllocationID *string           `json:"nat_gateway_allocation_id"`
 	NatGatewayAllocationIP *string           `json:"nat_gateway_allocation_ip"`
 	InternetGatewayID      *string           `json:"internet_gateway_id"`
+	DatacenterType         string            `json:"datacenter_type"`
+	DatacenterName         string            `json:"datacenter_name"`
+	DatacenterRegion       string            `json:"datacenter_region"`
+	AccessKeyID            string            `json:"aws_access_key_id"`
+	SecretAccessKey        string            `json:"aws_secret_access_key"`
+	VpcID                  string            `json:"vpc_id"`
 	Tags                   map[string]string `json:"tags"`
+	Service                string            `json:"service"`
 	ErrorMessage           string            `json:"error,omitempty"`
 	Subject                string            `json:"-"`
 	Body                   []byte            `json:"-"`
@@ -105,15 +111,11 @@ func (ev *Event) Error(err error) {
 
 // Validate checks if all criteria are met
 func (ev *Event) Validate() error {
-	if ev.VPCID == "" {
-		return ErrDatacenterIDInvalid
-	}
-
 	if ev.DatacenterRegion == "" {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -250,7 +252,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getEC2Client() *ec2.EC2 {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return ec2.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
@@ -306,7 +308,7 @@ func (ev *Event) routingTableBySubnetID(svc *ec2.EC2, subnet *string) (*ec2.Rout
 }
 
 func (ev *Event) createInternetGateway(svc *ec2.EC2) (*string, error) {
-	ig, err := ev.internetGatewayByVPCID(svc, ev.VPCID)
+	ig, err := ev.internetGatewayByVPCID(svc, ev.VpcID)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +324,7 @@ func (ev *Event) createInternetGateway(svc *ec2.EC2) (*string, error) {
 
 	req := ec2.AttachInternetGatewayInput{
 		InternetGatewayId: resp.InternetGateway.InternetGatewayId,
-		VpcId:             aws.String(ev.VPCID),
+		VpcId:             aws.String(ev.VpcID),
 	}
 
 	_, err = svc.AttachInternetGateway(&req)
@@ -344,7 +346,7 @@ func (ev *Event) createRouteTable(svc *ec2.EC2, subnet *string) (*ec2.RouteTable
 	}
 
 	req := ec2.CreateRouteTableInput{
-		VpcId: aws.String(ev.VPCID),
+		VpcId: aws.String(ev.VpcID),
 	}
 
 	resp, err := svc.CreateRouteTable(&req)

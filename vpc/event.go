@@ -28,20 +28,26 @@ var (
 
 // Event stores the template data
 type Event struct {
-	UUID               string            `json:"_uuid,omitempty"`
-	BatchID            string            `json:"_batch_id,omitempty"`
-	ProviderType       string            `json:"_type,omitempty"`
-	DatacenterName     string            `json:"datacenter_name,omitempty"`
-	DatacenterRegion   string            `json:"datacenter_region,omitempty"`
-	AWSAccessKeyID     string            `json:"aws_access_key_id,omitempty"`
-	AWSSecretAccessKey string            `json:"aws_secret_access_key,omitempty"`
-	VpcID              *string           `json:"vpc_id"`
-	VpcSubnet          *string           `json:"vpc_subnet"`
-	Tags               map[string]string `json:"tags"`
-	ErrorMessage       string            `json:"error,omitempty"`
-	Subject            string            `json:"-"`
-	Body               []byte            `json:"-"`
-	CryptoKey          string            `json:"-"`
+	ProviderType     string            `json:"_provider"`
+	ComponentType    string            `json:"_component"`
+	ComponentID      string            `json:"_component_id"`
+	State            string            `json:"_state"`
+	Action           string            `json:"_action"`
+	VpcID            *string           `json:"vpc_aws_id"`
+	Name             string            `json:"name"`
+	Subnet           *string           `json:"subnet"`
+	AutoRemove       bool              `json:"auto_remove"`
+	Tags             map[string]string `json:"tags"`
+	DatacenterType   string            `json:"datacenter_type,omitempty"`
+	DatacenterName   string            `json:"datacenter_name,omitempty"`
+	DatacenterRegion string            `json:"datacenter_region"`
+	AccessKeyID      string            `json:"aws_access_key_id"`
+	SecretAccessKey  string            `json:"aws_secret_access_key"`
+	Service          string            `json:"service"`
+	ErrorMessage     string            `json:"error,omitempty"`
+	Subject          string            `json:"-"`
+	Body             []byte            `json:"-"`
+	CryptoKey        string            `json:"-"`
 }
 
 // New : Constructor
@@ -101,7 +107,7 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterRegionInvalid
 	}
 
-	if ev.AWSAccessKeyID == "" || ev.AWSSecretAccessKey == "" {
+	if ev.AccessKeyID == "" || ev.SecretAccessKey == "" {
 		return ErrDatacenterCredentialsInvalid
 	}
 
@@ -118,7 +124,7 @@ func (ev *Event) Create() error {
 	svc := ev.getEC2Client()
 
 	req := ec2.CreateVpcInput{
-		CidrBlock: ev.VpcSubnet,
+		CidrBlock: ev.Subnet,
 	}
 	resp, err := svc.CreateVpc(&req)
 	if err != nil {
@@ -157,7 +163,7 @@ func (ev *Event) Get() error {
 }
 
 func (ev *Event) getEC2Client() *ec2.EC2 {
-	creds, _ := credentials.NewStaticCredentials(ev.AWSAccessKeyID, ev.AWSSecretAccessKey, ev.CryptoKey)
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return ec2.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,

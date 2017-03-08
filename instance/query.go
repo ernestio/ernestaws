@@ -180,7 +180,7 @@ func toEvent(i *ec2.Instance) *Event {
 	return &Event{
 		InstanceAWSID:       i.InstanceId,
 		Name:                aws.String(name),
-		InstanceType:        i.InstanceType,
+		Type:                i.InstanceType,
 		Image:               i.ImageId,
 		NetworkAWSID:        i.SubnetId,
 		SecurityGroupAWSIDs: mapAWSSecurityGroupIDs(i.SecurityGroups),
@@ -188,7 +188,6 @@ func toEvent(i *ec2.Instance) *Event {
 		KeyPair:             i.KeyName,
 		PublicIP:            i.PublicIpAddress,
 		Volumes:             mapAWSVolumes(i.BlockDeviceMappings, i.RootDeviceName),
-		VPCID:               *i.VpcId,
 		Tags:                tags,
 	}
 }
