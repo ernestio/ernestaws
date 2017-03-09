@@ -18,9 +18,11 @@ import (
 
 // Collection ....
 type Collection struct {
-	UUID               string            `json:"_uuid"`
-	BatchID            string            `json:"_batch_id"`
-	ProviderType       string            `json:"_type"`
+	ProviderType       string            `json:"_provider"`
+	ComponentType      string            `json:"_component"`
+	ComponentID        string            `json:"_component_id"`
+	State              string            `json:"_state"`
+	Action             string            `json:"_action"`
 	Service            string            `json:"service"`
 	AWSAccessKeyID     string            `json:"aws_access_key_id"`
 	AWSSecretAccessKey string            `json:"aws_secret_access_key"`
@@ -66,8 +68,14 @@ func (col *Collection) Process() (err error) {
 func (col *Collection) Error(err error) {
 	log.Printf("Error: %s", err.Error())
 	col.ErrorMessage = err.Error()
+	col.State = "errored"
 
 	col.Body, err = json.Marshal(col)
+}
+
+// Complete : sets the state of the event to completed
+func (col *Collection) Complete() {
+	col.State = "completed"
 }
 
 // Validate checks if all criteria are met

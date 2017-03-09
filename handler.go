@@ -13,7 +13,7 @@ func Handle(ev *Event) (string, []byte) {
 	var err error
 
 	n := *ev
-	if err := n.Process(); err != nil {
+	if err = n.Process(); err != nil {
 		return n.GetSubject() + ".error", n.GetBody()
 	}
 
@@ -35,6 +35,8 @@ func Handle(ev *Event) (string, []byte) {
 		n.Error(err)
 		return n.GetSubject() + ".error", n.GetBody()
 	}
+
+	n.Complete()
 
 	return n.GetSubject() + ".done", n.GetBody()
 }

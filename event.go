@@ -9,6 +9,7 @@ type Event interface {
 	Validate() error
 	Process() (err error)
 	Error(err error)
+	Complete()
 	Create() error
 	Update() error
 	Delete() error

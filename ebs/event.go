@@ -104,8 +104,14 @@ func (ev *Event) Process() (err error) {
 func (ev *Event) Error(err error) {
 	log.Printf("Error: %s", err.Error())
 	ev.ErrorMessage = err.Error()
+	ev.State = "errored"
 
 	ev.Body, err = json.Marshal(ev)
+}
+
+// Complete : sets the state of the event to completed
+func (ev *Event) Complete() {
+	ev.State = "completed"
 }
 
 // Validate checks if all criteria are met

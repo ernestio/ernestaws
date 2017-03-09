@@ -14,10 +14,15 @@ import (
 
 // Event stores the template data
 type Event struct {
-	ErrorMessage string `json:"error,omitempty"`
-	Subject      string `json:"-"`
-	Body         []byte `json:"-"`
-	CryptoKey    string `json:"-"`
+	ProviderType  string `json:"_provider"`
+	ComponentType string `json:"_component"`
+	ComponentID   string `json:"_component_id"`
+	State         string `json:"_state"`
+	Action        string `json:"_action"`
+	ErrorMessage  string `json:"error,omitempty"`
+	Subject       string `json:"-"`
+	Body          []byte `json:"-"`
+	CryptoKey     string `json:"-"`
 }
 
 // New : Constructor
@@ -60,8 +65,14 @@ func (ev *Event) Process() (err error) {
 func (ev *Event) Error(err error) {
 	log.Printf("Error: %s", err.Error())
 	ev.ErrorMessage = err.Error()
+	ev.State = "errored"
 
 	ev.Body, err = json.Marshal(ev)
+}
+
+// Complete : sets the state of the event to completed
+func (ev *Event) Complete() {
+	ev.State = "completed"
 }
 
 // Validate checks if all criteria are met
