@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -270,7 +271,7 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
-	return nil
+	return ev.waitForELBRemoval(ev.Name)
 }
 
 // Get : Gets a elb object on aws
@@ -520,6 +521,31 @@ func (ev *Event) subnetsToDetach(newSubnets []*string, currentSubnets []*string)
 	}
 
 	return s
+}
+
+func (ev *Event) waitForELBRemoval(name *string) error {
+	for {
+		resp, err := ev.getELBs(name)
+		if err != nil {
+			return err
+		}
+
+		if len(resp.LoadBalancerDescriptions) == 0 {
+			return nil
+		}
+
+		time.Sleep(time.Second)
+	}
+}
+
+func (ev *Event) getELBs(name *string) (*elb.DescribeLoadBalancersOutput, error) {
+	svc := ev.getELBClient()
+
+	req := elb.DescribeLoadBalancersInput{
+		LoadBalancerNames: []*string{name},
+	}
+
+	return svc.DescribeLoadBalancers(&req)
 }
 
 func (ev *Event) setTags() error {
