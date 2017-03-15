@@ -13,6 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/ernestio/ernestaws"
 	"github.com/ernestio/ernestaws/credentials"
@@ -271,7 +272,19 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
-	return ev.waitForELBRemoval(ev.Name)
+	err = ev.waitForELBRemoval(ev.Name)
+	if err != nil {
+		return err
+	}
+
+	for _, id := range ev.NetworkAWSIDs {
+		err = ev.waitForInterfaceRemoval(id)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Get : Gets a elb object on aws
@@ -298,6 +311,14 @@ func (ev *Event) mapListeners() []*elb.Listener {
 func (ev *Event) getELBClient() *elb.ELB {
 	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
 	return elb.New(session.New(), &aws.Config{
+		Region:      aws.String(ev.DatacenterRegion),
+		Credentials: creds,
+	})
+}
+
+func (ev *Event) getEC2Client() *ec2.EC2 {
+	creds, _ := credentials.NewStaticCredentials(ev.AccessKeyID, ev.SecretAccessKey, ev.CryptoKey)
+	return ec2.New(session.New(), &aws.Config{
 		Region:      aws.String(ev.DatacenterRegion),
 		Credentials: creds,
 	})
@@ -546,6 +567,37 @@ func (ev *Event) getELBs(name *string) (*elb.DescribeLoadBalancersOutput, error)
 	}
 
 	return svc.DescribeLoadBalancers(&req)
+}
+
+func (ev *Event) waitForInterfaceRemoval(networkID *string) error {
+	for {
+		resp, err := ev.getNetworkInterfaces(networkID)
+		if err != nil {
+			return err
+		}
+
+		if len(resp.NetworkInterfaces) == 0 {
+			return nil
+		}
+
+		time.Sleep(time.Second)
+	}
+}
+
+func (ev *Event) getNetworkInterfaces(networkID *string) (*ec2.DescribeNetworkInterfacesOutput, error) {
+	svc := ev.getEC2Client()
+	f := []*ec2.Filter{
+		&ec2.Filter{
+			Name:   aws.String("subnet-id"),
+			Values: []*string{networkID},
+		},
+	}
+
+	req := ec2.DescribeNetworkInterfacesInput{
+		Filters: f,
+	}
+
+	return svc.DescribeNetworkInterfaces(&req)
 }
 
 func (ev *Event) setTags() error {

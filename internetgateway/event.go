@@ -246,6 +246,17 @@ func (ev *Event) deleteRouteTables() error {
 	}
 
 	for _, rt := range resp.RouteTables {
+		for _, assoc := range rt.Associations {
+			ddreq := &ec2.DisassociateRouteTableInput{
+				AssociationId: assoc.RouteTableAssociationId,
+			}
+
+			_, err = svc.DisassociateRouteTable(ddreq)
+			if err != nil {
+				return err
+			}
+		}
+
 		dreq := &ec2.DeleteRouteTableInput{
 			RouteTableId: rt.RouteTableId,
 		}
