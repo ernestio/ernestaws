@@ -527,7 +527,7 @@ func (ev *Event) waitForELBRemoval(name *string) error {
 	for {
 		resp, err := ev.getELBs(name)
 		if err != nil {
-			return err
+			return nil
 		}
 
 		if len(resp.LoadBalancerDescriptions) == 0 {

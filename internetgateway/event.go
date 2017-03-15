@@ -161,11 +161,16 @@ func (ev *Event) Update() error {
 func (ev *Event) Delete() error {
 	svc := ev.getEC2Client()
 
+	err := ev.deleteRouteTables()
+	if err != nil {
+		return err
+	}
+
 	req := &ec2.DeleteInternetGatewayInput{
 		InternetGatewayId: ev.InternetGatewayAWSID,
 	}
 
-	_, err := svc.DeleteInternetGateway(req)
+	_, err = svc.DeleteInternetGateway(req)
 
 	return err
 }
@@ -219,6 +224,39 @@ func (ev *Event) internetGatewayByVPCID(svc *ec2.EC2, vpc string) (*ec2.Internet
 	}
 
 	return resp.InternetGateways[0], nil
+}
+
+func (ev *Event) deleteRouteTables() error {
+	svc := ev.getEC2Client()
+
+	f := []*ec2.Filter{
+		&ec2.Filter{
+			Name:   aws.String("route.gateway-id"),
+			Values: []*string{ev.InternetGatewayAWSID},
+		},
+	}
+
+	req := &ec2.DescribeRouteTablesInput{
+		Filters: f,
+	}
+
+	resp, err := svc.DescribeRouteTables(req)
+	if err != nil {
+		return err
+	}
+
+	for _, rt := range resp.RouteTables {
+		dreq := &ec2.DeleteRouteTableInput{
+			RouteTableId: rt.RouteTableId,
+		}
+
+		_, err = svc.DeleteRouteTable(dreq)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (ev *Event) setTags() error {
