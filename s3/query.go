@@ -231,6 +231,9 @@ func toEvent(b *s3.Bucket, grants []*s3.Grant, location *string, tags []*s3.Tag)
 	uri := fmt.Sprintf("https://%s.s3.amazonaws.com", *b.Name)
 
 	e := &Event{
+		ProviderType:   "aws",
+		ComponentType:  "s3",
+		ComponentID:    "s3::" + *b.Name,
 		Name:           b.Name,
 		Grantees:       mapS3Grantees(grants),
 		BucketLocation: location,

@@ -204,6 +204,9 @@ func mapRDSSecurityGroups(sgroups []*rds.VpcSecurityGroupMembership) []*string {
 // ToEvent converts an rds instance object to an ernest event
 func toEvent(i *rds.DBInstance, tags []*rds.Tag) *Event {
 	e := &Event{
+		ProviderType:        "aws",
+		ComponentType:       "rds_instance",
+		ComponentID:         "rds_instance::" + *i.DBInstanceIdentifier,
 		ARN:                 i.DBInstanceArn,
 		Name:                i.DBInstanceIdentifier,
 		Size:                i.DBInstanceClass,

@@ -153,6 +153,9 @@ func toEvent(i *ec2.InternetGateway) *Event {
 	name := tags["Name"]
 
 	return &Event{
+		ProviderType:         "aws",
+		ComponentType:        "internet_gateway",
+		ComponentID:          "internet_gateway::" + name,
 		InternetGatewayAWSID: i.InternetGatewayId,
 		Name:                 aws.String(name),
 		Tags:                 tags,

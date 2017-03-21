@@ -163,6 +163,9 @@ func toEvent(v *ec2.Volume) *Event {
 	name := tags["Name"]
 
 	return &Event{
+		ProviderType:     "aws",
+		ComponentType:    "ebs_volume",
+		ComponentID:      "ebs_volume::" + name,
 		Name:             aws.String(name),
 		VolumeAWSID:      v.VolumeId,
 		AvailabilityZone: v.AvailabilityZone,

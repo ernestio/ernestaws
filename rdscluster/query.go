@@ -220,6 +220,9 @@ func mapRDSSecurityGroups(sgroups []*rds.VpcSecurityGroupMembership) []*string {
 // ToEvent converts an rds cluster object to an ernest event
 func toEvent(c *rds.DBCluster, sg *rds.DBSubnetGroup, tags []*rds.Tag) *Event {
 	e := &Event{
+		ProviderType:        "aws",
+		ComponentType:       "rds_cluster",
+		ComponentID:         "rds_cluster::" + *c.DBClusterIdentifier,
 		ARN:                 c.DBClusterArn,
 		Name:                c.DBClusterIdentifier,
 		Engine:              c.Engine,

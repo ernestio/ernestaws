@@ -117,12 +117,26 @@ func (col *Collection) Find() error {
 
 	// As tags aren't supported on nat gw's, we append all items to be filtered later.
 	for _, ng := range resp.NatGateways {
-		e := toEvent(ng)
+		var name string
 
-		e.RoutedNetworkAWSIDs, err = col.getRoutedNetworks(e.NatGatewayAWSID)
+		networks, err := col.getRoutedNetworks(ng.NatGatewayId)
 		if err != nil {
 			return err
 		}
+
+		for _, network := range networks {
+			name, err = col.getGatewayName(network)
+			if err != nil {
+				return err
+			}
+
+			if name != "" {
+				break
+			}
+		}
+
+		e := toEvent(ng, name)
+		e.RoutedNetworkAWSIDs = networks
 
 		col.Results = append(col.Results, e)
 	}
@@ -149,16 +163,6 @@ func mapFilters(tags map[string]string) []*ec2.Filter {
 	}
 
 	return f
-}
-
-func mapEC2Tags(input []*ec2.TagDescription) map[string]string {
-	t := make(map[string]string)
-
-	for _, tag := range input {
-		t[*tag.Key] = *tag.Value
-	}
-
-	return t
 }
 
 func getPublicAllocation(addresses []*ec2.NatGatewayAddress) (*string, *string) {
@@ -201,11 +205,55 @@ func (col *Collection) getRoutedNetworks(gatewayID *string) ([]*string, error) {
 	return ids, err
 }
 
+func (col *Collection) getGatewayName(networkID *string) (string, error) {
+	nw, err := col.getNetwork(networkID)
+	if err != nil {
+		return "", err
+	}
+
+	tags := mapEC2Tags(nw.Tags)
+	name := tags["ernest.nat_gateway"]
+
+	return name, nil
+}
+
+func (col *Collection) getNetwork(id *string) (*ec2.Subnet, error) {
+	svc := col.getEC2Client()
+
+	req := &ec2.DescribeSubnetsInput{
+		SubnetIds: []*string{id},
+	}
+
+	resp, err := svc.DescribeSubnets(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Subnets) != 1 {
+		return nil, errors.New("could not find referenced nat gateway subnet")
+	}
+
+	return resp.Subnets[0], nil
+}
+
+func mapEC2Tags(input []*ec2.Tag) map[string]string {
+	t := make(map[string]string)
+
+	for _, tag := range input {
+		t[*tag.Key] = *tag.Value
+	}
+
+	return t
+}
+
 // ToEvent converts an ec2 nat gateway object to an ernest event
-func toEvent(ng *ec2.NatGateway) *Event {
+func toEvent(ng *ec2.NatGateway, name string) *Event {
 	id, ip := getPublicAllocation(ng.NatGatewayAddresses)
 
 	e := &Event{
+		ProviderType:           "aws",
+		ComponentType:          "nat",
+		ComponentID:            "nat::" + name,
 		VpcID:                  *ng.VpcId,
 		NatGatewayAWSID:        ng.NatGatewayId,
 		PublicNetworkAWSID:     ng.SubnetId,

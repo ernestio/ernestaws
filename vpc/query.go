@@ -159,9 +159,16 @@ func mapEC2Tags(input []*ec2.Tag) map[string]string {
 
 // ToEvent converts an ec2 vpc object to an ernest event
 func toEvent(v *ec2.Vpc) *Event {
+	tags := mapEC2Tags(v.Tags)
+	name := tags["Name"]
+
 	return &Event{
-		VpcID:  v.VpcId,
-		Subnet: v.CidrBlock,
-		Tags:   mapEC2Tags(v.Tags),
+		ProviderType:  "aws",
+		ComponentType: "vpc",
+		ComponentID:   "vpc::" + name,
+		VpcID:         v.VpcId,
+		Name:          name,
+		Subnet:        v.CidrBlock,
+		Tags:          mapEC2Tags(v.Tags),
 	}
 }

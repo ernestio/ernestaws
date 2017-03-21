@@ -211,6 +211,9 @@ func mapELBSubnets(input []*string) []*string {
 // toEvent converts an ec2 subnet object to an ernest event
 func toEvent(e *elb.LoadBalancerDescription, tags []*elb.Tag) *Event {
 	return &Event{
+		ProviderType:        "aws",
+		ComponentType:       "elb",
+		ComponentID:         "elb::" + *e.LoadBalancerName,
 		Name:                e.LoadBalancerName,
 		DNSName:             e.DNSName,
 		Listeners:           mapELBListeners(e.ListenerDescriptions),

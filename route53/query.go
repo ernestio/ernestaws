@@ -221,11 +221,14 @@ func mapRoute53Records(name *string, records []*route53.ResourceRecordSet) []Rec
 // ToEvent converts an route53 instance object to an ernest event
 func toEvent(z *route53.HostedZone, records []*route53.ResourceRecordSet, tags []*route53.Tag) *Event {
 	e := &Event{
-		HostedZoneID: z.Id,
-		Name:         z.Name,
-		Private:      z.Config.PrivateZone,
-		Records:      mapRoute53Records(z.Name, records),
-		Tags:         mapRoute53Tags(tags),
+		ProviderType:  "aws",
+		ComponentType: "route53",
+		ComponentID:   "route53::" + *z.Name,
+		HostedZoneID:  z.Id,
+		Name:          z.Name,
+		Private:       z.Config.PrivateZone,
+		Records:       mapRoute53Records(z.Name, records),
+		Tags:          mapRoute53Tags(tags),
 	}
 	return e
 }

@@ -160,6 +160,9 @@ func mapEC2Tags(input []*ec2.Tag) map[string]string {
 // toEvent converts an ec2 security group object to an ernest event
 func toEvent(sg *ec2.SecurityGroup) *Event {
 	e := &Event{
+		ProviderType:       "aws",
+		ComponentType:      "firewall",
+		ComponentID:        "firewall::" + *sg.GroupName,
 		VpcID:              *sg.VpcId,
 		SecurityGroupAWSID: sg.GroupId,
 		Name:               sg.GroupName,

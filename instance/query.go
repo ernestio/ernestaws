@@ -186,6 +186,9 @@ func toEvent(i *ec2.Instance) *Event {
 	name := tags["Name"]
 
 	return &Event{
+		ProviderType:        "aws",
+		ComponentType:       "instance",
+		ComponentID:         "instance::" + name,
 		InstanceAWSID:       i.InstanceId,
 		Name:                aws.String(name),
 		Type:                i.InstanceType,

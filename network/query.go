@@ -163,6 +163,9 @@ func toEvent(n *ec2.Subnet) *Event {
 	name := tags["Name"]
 
 	return &Event{
+		ProviderType:     "aws",
+		ComponentType:    "network",
+		ComponentID:      "network::" + name,
 		VpcID:            *n.VpcId,
 		NetworkAWSID:     n.SubnetId,
 		Name:             aws.String(name),
