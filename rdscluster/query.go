@@ -129,7 +129,7 @@ func (col *Collection) Find() error {
 		e := toEvent(c, sg, tags)
 
 		if tagsMatch(col.Tags, e.Tags) {
-			col.Results = append(col.Results)
+			col.Results = append(col.Results, e)
 		}
 	}
 
