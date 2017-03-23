@@ -149,14 +149,21 @@ func mapFilters(tags map[string]string) []*ec2.Filter {
 
 // ToEvent converts an ec2 instance object to an ernest event
 func toEvent(i *ec2.InternetGateway) *Event {
+	var vpcid string
+
 	tags := mapEC2Tags(i.Tags)
 	name := tags["Name"]
+
+	for _, attachments := range i.Attachments {
+		vpcid = *attachments.VpcId
+	}
 
 	return &Event{
 		ProviderType:         "aws",
 		ComponentType:        "internet_gateway",
 		ComponentID:          "internet_gateway::" + name,
 		InternetGatewayAWSID: i.InternetGatewayId,
+		VpcID:                vpcid,
 		Name:                 aws.String(name),
 		Tags:                 tags,
 	}
