@@ -186,13 +186,13 @@ func (ev *Event) Update() error {
 		var grantee s3.Grantee
 
 		switch *g.Type {
-		case "id":
+		case "id", "CanonicalUser":
 			grantee.Type = aws.String(s3.TypeCanonicalUser)
 			grantee.ID = g.ID
-		case "emailaddress":
+		case "emailaddress", "AmazonCustomerByEmail":
 			grantee.Type = aws.String(s3.TypeAmazonCustomerByEmail)
 			grantee.EmailAddress = g.ID
-		case "uri":
+		case "uri", "Group":
 			grantee.Type = aws.String(s3.TypeGroup)
 			grantee.URI = g.ID
 		}
