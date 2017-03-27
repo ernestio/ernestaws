@@ -166,6 +166,16 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
+	dreq := &ec2.DetachInternetGatewayInput{
+		InternetGatewayId: ev.InternetGatewayAWSID,
+		VpcId:             aws.String(ev.VpcID),
+	}
+
+	_, err = svc.DetachInternetGateway(dreq)
+	if err != nil {
+		return err
+	}
+
 	req := &ec2.DeleteInternetGatewayInput{
 		InternetGatewayId: ev.InternetGatewayAWSID,
 	}
