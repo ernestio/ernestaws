@@ -151,15 +151,6 @@ func (ev *Event) Create() error {
 		return err
 	}
 
-	req := s3.HeadBucketInput{
-		Bucket: resp.Location,
-	}
-
-	err = s3client.WaitUntilBucketExists(&req)
-	if err != nil {
-		return err
-	}
-
 	ev.BucketURI = resp.Location
 
 	if len(ev.Grantees) < 1 {
