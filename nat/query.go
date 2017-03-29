@@ -254,6 +254,7 @@ func toEvent(ng *ec2.NatGateway, name string) *Event {
 		ProviderType:           "aws",
 		ComponentType:          "nat",
 		ComponentID:            "nat::" + name,
+		Name:                   aws.String(name),
 		VpcID:                  *ng.VpcId,
 		NatGatewayAWSID:        ng.NatGatewayId,
 		PublicNetworkAWSID:     ng.SubnetId,
