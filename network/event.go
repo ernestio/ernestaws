@@ -33,29 +33,31 @@ var (
 
 // Event stores the network data
 type Event struct {
-	ProviderType     string            `json:"_provider"`
-	ComponentType    string            `json:"_component"`
-	ComponentID      string            `json:"_component_id"`
-	State            string            `json:"_state"`
-	Action           string            `json:"_action"`
-	NetworkAWSID     *string           `json:"network_aws_id"`
-	Name             *string           `json:"name"`
-	Subnet           *string           `json:"range"`
-	IsPublic         *bool             `json:"is_public"`
-	AvailabilityZone *string           `json:"availability_zone"`
-	Tags             map[string]string `json:"tags"`
-	DatacenterType   string            `json:"datacenter_type"`
-	DatacenterName   string            `json:"datacenter_name"`
-	DatacenterRegion string            `json:"datacenter_region"`
-	AccessKeyID      string            `json:"aws_access_key_id"`
-	SecretAccessKey  string            `json:"aws_secret_access_key"`
-	Vpc              string            `json:"vpc"`
-	VpcID            string            `json:"vpc_id"`
-	Service          string            `json:"service"`
-	ErrorMessage     string            `json:"error,omitempty"`
-	Subject          string            `json:"-"`
-	Body             []byte            `json:"-"`
-	CryptoKey        string            `json:"-"`
+	ProviderType         string            `json:"_provider"`
+	ComponentType        string            `json:"_component"`
+	ComponentID          string            `json:"_component_id"`
+	State                string            `json:"_state"`
+	Action               string            `json:"_action"`
+	NetworkAWSID         *string           `json:"network_aws_id"`
+	Name                 *string           `json:"name"`
+	Subnet               *string           `json:"range"`
+	IsPublic             *bool             `json:"is_public"`
+	InternetGateway      string            `json:"internet_gateway"`
+	InternetGatewayAWSID string            `json:"internet_gateway_aws_id"`
+	AvailabilityZone     *string           `json:"availability_zone"`
+	Tags                 map[string]string `json:"tags"`
+	DatacenterType       string            `json:"datacenter_type"`
+	DatacenterName       string            `json:"datacenter_name"`
+	DatacenterRegion     string            `json:"datacenter_region"`
+	AccessKeyID          string            `json:"aws_access_key_id"`
+	SecretAccessKey      string            `json:"aws_secret_access_key"`
+	Vpc                  string            `json:"vpc"`
+	VpcID                string            `json:"vpc_id"`
+	Service              string            `json:"service"`
+	ErrorMessage         string            `json:"error,omitempty"`
+	Subject              string            `json:"-"`
+	Body                 []byte            `json:"-"`
+	CryptoKey            string            `json:"-"`
 }
 
 // New : Constructor
