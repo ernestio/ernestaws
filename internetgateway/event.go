@@ -263,7 +263,8 @@ func (ev *Event) deleteRouteTables() error {
 
 			_, err = svc.DisassociateRouteTable(ddreq)
 			if err != nil {
-				return err
+				log.Println(err)
+				continue
 			}
 		}
 
@@ -273,7 +274,8 @@ func (ev *Event) deleteRouteTables() error {
 
 		_, err = svc.DeleteRouteTable(dreq)
 		if err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 	}
 
