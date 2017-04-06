@@ -586,9 +586,11 @@ func (ev *Event) waitForInterfaceRemoval(networkID *string) error {
 
 func hasELBAttachment(ifaces []*ec2.NetworkInterface, name *string) bool {
 	for _, iface := range ifaces {
-		if *iface.Association.IpOwnerId == "amazon-elb" {
-			if *iface.Description == "ELB "+*name {
-				return true
+		if iface.Association.IpOwnerId != nil && iface.Description != nil {
+			if *iface.Association.IpOwnerId == "amazon-elb" {
+				if *iface.Description == "ELB "+*name {
+					return true
+				}
 			}
 		}
 	}
