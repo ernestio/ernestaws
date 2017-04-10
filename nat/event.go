@@ -390,6 +390,10 @@ func (ev *Event) createNatGatewayRoutes(svc *ec2.EC2, rt *ec2.RouteTable, gwID *
 
 func (ev *Event) isNatGatewayDeleted(svc *ec2.EC2, id *string) bool {
 	gw, _ := ev.natGatewayByID(svc, id)
+	if gw == nil {
+		return true
+	}
+
 	if *gw.State == ec2.NatGatewayStateDeleted {
 		return true
 	}

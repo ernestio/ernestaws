@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -222,13 +223,8 @@ func (ev *Event) Delete() error {
 		return err
 	}
 
-	waitreq := &rds.DescribeDBInstancesInput{
-		DBInstanceIdentifier: ev.Name,
-	}
-
-	err = svc.WaitUntilDBInstanceDeleted(waitreq)
-	if err != nil {
-		return err
+	for ev.isRDSInstanceDeleted(ev.Name) == false {
+		time.Sleep(time.Second * 3)
 	}
 
 	return deleteSubnetGroup(ev)
@@ -351,6 +347,25 @@ func (ev *Event) createReplicaDB(svc *rds.RDS, subnetGroup *string) error {
 	}
 
 	return ev.setTags()
+}
+
+func (ev *Event) isRDSInstanceDeleted(name *string) bool {
+	svc := ev.getRDSClient()
+
+	req := &rds.DescribeDBInstancesInput{
+		DBInstanceIdentifier: name,
+	}
+
+	resp, err := svc.DescribeDBInstances(req)
+	if err != nil {
+		return true
+	}
+
+	if len(resp.DBInstances) != 1 {
+		return true
+	}
+
+	return false
 }
 
 func (ev *Event) getRDSClient() *rds.RDS {
