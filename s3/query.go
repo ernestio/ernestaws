@@ -122,6 +122,10 @@ func (col *Collection) Find() error {
 			return err
 		}
 
+		if location == nil {
+			continue
+		}
+
 		if *location != col.DatacenterRegion {
 			continue
 		}
