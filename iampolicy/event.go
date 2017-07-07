@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-package iamrole
+package iampolicy
 
 import (
 	"encoding/json"
@@ -32,24 +32,25 @@ var (
 
 // Event stores the network data
 type Event struct {
-	ProviderType         string  `json:"_provider"`
-	ComponentType        string  `json:"_component"`
-	ComponentID          string  `json:"_component_id"`
-	State                string  `json:"_state"`
-	Action               string  `json:"_action"`
-	IAMRoleAWSID         *string `json:"iam_role_aws_id"`
-	Name                 *string `json:"name"`
-	AssumePolicyDocument *string `json:"assume_policy_document"`
-	Description          *string `json:"description"`
-	Path                 *string `json:"path"`
-	DatacenterRegion     string  `json:"datacenter_region"`
-	AccessKeyID          string  `json:"aws_access_key_id"`
-	SecretAccessKey      string  `json:"aws_secret_access_key"`
-	Service              string  `json:"service"`
-	ErrorMessage         string  `json:"error,omitempty"`
-	Subject              string  `json:"-"`
-	Body                 []byte  `json:"-"`
-	CryptoKey            string  `json:"-"`
+	ProviderType     string  `json:"_provider"`
+	ComponentType    string  `json:"_component"`
+	ComponentID      string  `json:"_component_id"`
+	State            string  `json:"_state"`
+	Action           string  `json:"_action"`
+	IAMPolicyAWSID   *string `json:"iam_policy_aws_id"`
+	IAMPolicyARN     *string `json:"iam_policy_arn"`
+	Name             *string `json:"name"`
+	PolicyDocument   *string `json:"policy_document"`
+	Description      *string `json:"description"`
+	Path             *string `json:"path"`
+	DatacenterRegion string  `json:"datacenter_region"`
+	AccessKeyID      string  `json:"aws_access_key_id"`
+	SecretAccessKey  string  `json:"aws_secret_access_key"`
+	Service          string  `json:"service"`
+	ErrorMessage     string  `json:"error,omitempty"`
+	Subject          string  `json:"-"`
+	Body             []byte  `json:"-"`
+	CryptoKey        string  `json:"-"`
 }
 
 // New : Constructor
@@ -71,8 +72,8 @@ func (ev *Event) Validate() error {
 		return ErrDatacenterCredentialsInvalid
 	}
 
-	if ev.Subject == "iam_role.delete.aws" {
-		if ev.IAMRoleAWSID == nil {
+	if ev.Subject == "iam_policy.delete.aws" {
+		if ev.IAMPolicyAWSID == nil {
 			return ErrNetworkAWSIDInvalid
 		}
 	}
@@ -118,19 +119,20 @@ func (ev *Event) Find() error {
 func (ev *Event) Create() error {
 	svc := ev.getIAMClient()
 
-	req := &iam.CreateRoleInput{
-		RoleName:                 ev.Name,
-		Description:              ev.Description,
-		AssumeRolePolicyDocument: ev.AssumePolicyDocument,
-		Path: ev.Path,
+	req := &iam.CreatePolicyInput{
+		PolicyName:     ev.Name,
+		PolicyDocument: ev.PolicyDocument,
+		Path:           ev.Path,
+		Description:    ev.Description,
 	}
 
-	resp, err := svc.CreateRole(req)
+	resp, err := svc.CreatePolicy(req)
 	if err != nil {
 		return err
 	}
 
-	ev.IAMRoleAWSID = resp.Role.RoleId
+	ev.IAMPolicyAWSID = resp.Policy.PolicyId
+	ev.IAMPolicyARN = resp.Policy.Arn
 
 	return nil
 }
@@ -144,11 +146,11 @@ func (ev *Event) Update() error {
 func (ev *Event) Delete() error {
 	svc := ev.getIAMClient()
 
-	req := &iam.DeleteRoleInput{
-		RoleName: ev.Name,
+	req := &iam.DeletePolicyInput{
+		PolicyArn: ev.IAMPolicyARN,
 	}
 
-	_, err := svc.DeleteRole(req)
+	_, err := svc.DeletePolicy(req)
 
 	return err
 }

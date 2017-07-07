@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-package iamrole
+package iampolicy
 
 import (
 	"encoding/json"
@@ -111,13 +111,13 @@ func (col *Collection) Delete() error {
 func (col *Collection) Find() error {
 	svc := col.getIAMClient()
 
-	resp, err := svc.ListRoles(&iam.ListRolesInput{})
+	resp, err := svc.ListPolicies(&iam.ListPoliciesInput{})
 	if err != nil {
 		return err
 	}
 
-	for _, r := range resp.Roles {
-		col.Results = append(col.Results, toEvent(r))
+	for _, p := range resp.Policies {
+		col.Results = append(col.Results, toEvent(p))
 	}
 
 	return nil
@@ -155,15 +155,15 @@ func mapEC2Tags(input []*ec2.Tag) map[string]string {
 }
 
 // ToEvent converts an ec2 subnet object to an ernest event
-func toEvent(r *iam.Role) *Event {
+func toEvent(r *iam.Policy) *Event {
 	return &Event{
-		ProviderType:         "aws",
-		ComponentType:        "iam_role",
-		ComponentID:          "iam_role::" + *r.RoleName,
-		IAMRoleAWSID:         r.RoleId,
-		Name:                 r.RoleName,
-		Description:          r.Description,
-		AssumePolicyDocument: r.AssumeRolePolicyDocument,
-		Path:                 r.Path,
+		ProviderType:   "aws",
+		ComponentType:  "iam_policy",
+		ComponentID:    "iam_policy::" + *r.PolicyName,
+		IAMPolicyAWSID: r.PolicyId,
+		IAMPolicyARN:   r.Arn,
+		Name:           r.PolicyName,
+		Description:    r.Description,
+		Path:           r.Path,
 	}
 }
