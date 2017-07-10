@@ -202,7 +202,6 @@ func (ev *Event) Create() error {
 	if ev.IAMInstanceProfile != nil {
 		req.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
 			Name: ev.IAMInstanceProfile,
-			Arn:  ev.IAMInstanceProfileARN,
 		}
 	}
 

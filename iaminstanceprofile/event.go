@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -151,6 +152,9 @@ func (ev *Event) Create() error {
 			return err
 		}
 	}
+
+	// wait request doesn't wait long enough :/
+	time.Sleep(time.Second)
 
 	return err
 }

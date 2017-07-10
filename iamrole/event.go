@@ -160,6 +160,18 @@ func (ev *Event) Update() error {
 func (ev *Event) Delete() error {
 	svc := ev.getIAMClient()
 
+	for _, arn := range ev.PolicyARNs {
+		dreq := &iam.DetachRolePolicyInput{
+			RoleName:  ev.Name,
+			PolicyArn: arn,
+		}
+
+		_, err := svc.DetachRolePolicy(dreq)
+		if err != nil {
+			return err
+		}
+	}
+
 	req := &iam.DeleteRoleInput{
 		RoleName: ev.Name,
 	}
