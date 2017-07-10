@@ -32,26 +32,24 @@ var (
 
 // Event stores the network data
 type Event struct {
-	ProviderType  string `json:"_provider"`
-	ComponentType string `json:"_component"`
-	ComponentID   string `json:"_component_id"`
-	State         string `json:"_state"`
-	Action        string `json:"_action"`
-
+	ProviderType            string    `json:"_provider"`
+	ComponentType           string    `json:"_component"`
+	ComponentID             string    `json:"_component_id"`
+	State                   string    `json:"_state"`
+	Action                  string    `json:"_action"`
 	IAMInstanceProfileAWSID *string   `json:"iam_instance_profile_aws_id"`
 	IAMInstanceProfileARN   *string   `json:"iam_instance_profile_arn"`
 	Name                    *string   `json:"name"`
 	Roles                   []*string `json:"roles"`
 	Path                    *string   `json:"path"`
-
-	DatacenterRegion string `json:"datacenter_region"`
-	AccessKeyID      string `json:"aws_access_key_id"`
-	SecretAccessKey  string `json:"aws_secret_access_key"`
-	Service          string `json:"service"`
-	ErrorMessage     string `json:"error,omitempty"`
-	Subject          string `json:"-"`
-	Body             []byte `json:"-"`
-	CryptoKey        string `json:"-"`
+	DatacenterRegion        string    `json:"datacenter_region"`
+	AccessKeyID             string    `json:"aws_access_key_id"`
+	SecretAccessKey         string    `json:"aws_secret_access_key"`
+	Service                 string    `json:"service"`
+	ErrorMessage            string    `json:"error,omitempty"`
+	Subject                 string    `json:"-"`
+	Body                    []byte    `json:"-"`
+	CryptoKey               string    `json:"-"`
 }
 
 // New : Constructor

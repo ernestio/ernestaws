@@ -185,7 +185,7 @@ func toEvent(i *ec2.Instance) *Event {
 	tags := mapEC2Tags(i.Tags)
 	name := tags["Name"]
 
-	return &Event{
+	e := &Event{
 		ProviderType:        "aws",
 		ComponentType:       "instance",
 		ComponentID:         "instance::" + name,
@@ -201,4 +201,10 @@ func toEvent(i *ec2.Instance) *Event {
 		Volumes:             mapAWSVolumes(i.BlockDeviceMappings, i.RootDeviceName),
 		Tags:                tags,
 	}
+
+	if i.IamInstanceProfile != nil {
+		e.IAMInstanceProfileARN = i.IamInstanceProfile.Arn
+	}
+
+	return e
 }

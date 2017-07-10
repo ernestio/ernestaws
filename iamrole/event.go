@@ -38,6 +38,7 @@ type Event struct {
 	State                string  `json:"_state"`
 	Action               string  `json:"_action"`
 	IAMRoleAWSID         *string `json:"iam_role_aws_id"`
+	IAMRoleARN           *string `json:"iam_role_arn"`
 	Name                 *string `json:"name"`
 	AssumePolicyDocument *string `json:"assume_policy_document"`
 	Description          *string `json:"description"`
@@ -131,6 +132,7 @@ func (ev *Event) Create() error {
 	}
 
 	ev.IAMRoleAWSID = resp.Role.RoleId
+	ev.IAMRoleARN = resp.Role.Arn
 
 	return nil
 }
