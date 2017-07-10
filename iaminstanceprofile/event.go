@@ -147,6 +147,9 @@ func (ev *Event) Create() error {
 		}
 
 		_, err = svc.AddRoleToInstanceProfile(areq)
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
