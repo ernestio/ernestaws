@@ -8,10 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/url"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/ernestio/ernestaws/credentials"
 )
@@ -117,7 +117,24 @@ func (col *Collection) Find() error {
 	}
 
 	for _, r := range resp.Roles {
-		col.Results = append(col.Results, toEvent(r))
+		var arns []*string
+		var policies []*string
+
+		req := &iam.ListAttachedRolePoliciesInput{
+			RoleName: r.RoleName,
+		}
+
+		resp, err := svc.ListAttachedRolePolicies(req)
+		if err != nil {
+			return err
+		}
+
+		for _, p := range resp.AttachedPolicies {
+			policies = append(policies, p.PolicyName)
+			arns = append(arns, p.PolicyArn)
+		}
+
+		col.Results = append(col.Results, toEvent(r, policies, arns))
 	}
 
 	return nil
@@ -131,31 +148,15 @@ func (col *Collection) getIAMClient() *iam.IAM {
 	})
 }
 
-func mapFilters(tags map[string]string) []*ec2.Filter {
-	var f []*ec2.Filter
-
-	for key, val := range tags {
-		f = append(f, &ec2.Filter{
-			Name:   aws.String("tag:" + key),
-			Values: []*string{aws.String(val)},
-		})
-	}
-
-	return f
-}
-
-func mapEC2Tags(input []*ec2.Tag) map[string]string {
-	t := make(map[string]string)
-
-	for _, tag := range input {
-		t[*tag.Key] = *tag.Value
-	}
-
-	return t
-}
-
 // ToEvent converts an ec2 subnet object to an ernest event
-func toEvent(r *iam.Role) *Event {
+func toEvent(r *iam.Role, policies, arns []*string) *Event {
+	var document *string
+
+	if r.AssumeRolePolicyDocument != nil {
+		escaped, _ := url.QueryUnescape(*r.AssumeRolePolicyDocument)
+		document = &escaped
+	}
+
 	return &Event{
 		ProviderType:         "aws",
 		ComponentType:        "iam_role",
@@ -163,7 +164,9 @@ func toEvent(r *iam.Role) *Event {
 		IAMRoleAWSID:         r.RoleId,
 		Name:                 r.RoleName,
 		Description:          r.Description,
-		AssumePolicyDocument: r.AssumeRolePolicyDocument,
+		Policies:             policies,
+		PolicyARNs:           arns,
+		AssumePolicyDocument: document,
 		Path:                 r.Path,
 	}
 }

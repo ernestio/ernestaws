@@ -11,7 +11,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/ernestio/ernestaws/credentials"
 )
@@ -129,29 +128,6 @@ func (col *Collection) getIAMClient() *iam.IAM {
 		Region:      aws.String(col.DatacenterRegion),
 		Credentials: creds,
 	})
-}
-
-func mapFilters(tags map[string]string) []*ec2.Filter {
-	var f []*ec2.Filter
-
-	for key, val := range tags {
-		f = append(f, &ec2.Filter{
-			Name:   aws.String("tag:" + key),
-			Values: []*string{aws.String(val)},
-		})
-	}
-
-	return f
-}
-
-func mapEC2Tags(input []*ec2.Tag) map[string]string {
-	t := make(map[string]string)
-
-	for _, tag := range input {
-		t[*tag.Key] = *tag.Value
-	}
-
-	return t
 }
 
 // ToEvent converts an ec2 subnet object to an ernest event

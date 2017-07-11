@@ -8,10 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/url"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/ernestio/ernestaws/credentials"
 )
@@ -111,13 +111,36 @@ func (col *Collection) Delete() error {
 func (col *Collection) Find() error {
 	svc := col.getIAMClient()
 
-	resp, err := svc.ListPolicies(&iam.ListPoliciesInput{})
+	req := &iam.ListPoliciesInput{
+		Scope: aws.String("Local"),
+	}
+
+	resp, err := svc.ListPolicies(req)
 	if err != nil {
 		return err
 	}
 
 	for _, p := range resp.Policies {
-		col.Results = append(col.Results, toEvent(p))
+		var document *string
+
+		req := &iam.GetPolicyVersionInput{
+			PolicyArn: p.Arn,
+			VersionId: p.DefaultVersionId,
+		}
+
+		resp, err := svc.GetPolicyVersion(req)
+		if err != nil {
+			return err
+		}
+
+		if resp.PolicyVersion != nil {
+			if resp.PolicyVersion.Document != nil {
+				escaped, _ := url.QueryUnescape(*resp.PolicyVersion.Document)
+				document = &escaped
+			}
+		}
+
+		col.Results = append(col.Results, toEvent(p, document))
 	}
 
 	return nil
@@ -131,31 +154,8 @@ func (col *Collection) getIAMClient() *iam.IAM {
 	})
 }
 
-func mapFilters(tags map[string]string) []*ec2.Filter {
-	var f []*ec2.Filter
-
-	for key, val := range tags {
-		f = append(f, &ec2.Filter{
-			Name:   aws.String("tag:" + key),
-			Values: []*string{aws.String(val)},
-		})
-	}
-
-	return f
-}
-
-func mapEC2Tags(input []*ec2.Tag) map[string]string {
-	t := make(map[string]string)
-
-	for _, tag := range input {
-		t[*tag.Key] = *tag.Value
-	}
-
-	return t
-}
-
 // ToEvent converts an ec2 subnet object to an ernest event
-func toEvent(r *iam.Policy) *Event {
+func toEvent(r *iam.Policy, document *string) *Event {
 	return &Event{
 		ProviderType:   "aws",
 		ComponentType:  "iam_policy",
@@ -165,5 +165,6 @@ func toEvent(r *iam.Policy) *Event {
 		Name:           r.PolicyName,
 		Description:    r.Description,
 		Path:           r.Path,
+		PolicyDocument: document,
 	}
 }

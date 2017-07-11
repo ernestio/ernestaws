@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/ernestio/ernestaws/credentials"
 )
 
@@ -121,7 +122,24 @@ func (col *Collection) Find() error {
 
 	for _, r := range resp.Reservations {
 		for _, i := range r.Instances {
-			col.Results = append(col.Results, toEvent(i))
+			var profile *string
+
+			if i.IamInstanceProfile != nil {
+				isvc := col.getIAMClient()
+
+				resp, err := isvc.ListInstanceProfiles(nil)
+				if err != nil {
+					return err
+				}
+
+				for _, p := range resp.InstanceProfiles {
+					if *p.Arn == *i.IamInstanceProfile.Arn {
+						profile = p.InstanceProfileName
+					}
+				}
+			}
+
+			col.Results = append(col.Results, toEvent(i, profile))
 		}
 	}
 
@@ -131,6 +149,14 @@ func (col *Collection) Find() error {
 func (col *Collection) getEC2Client() *ec2.EC2 {
 	creds, _ := credentials.NewStaticCredentials(col.AWSAccessKeyID, col.AWSSecretAccessKey, col.CryptoKey)
 	return ec2.New(session.New(), &aws.Config{
+		Region:      aws.String(col.DatacenterRegion),
+		Credentials: creds,
+	})
+}
+
+func (col *Collection) getIAMClient() *iam.IAM {
+	creds, _ := credentials.NewStaticCredentials(col.AWSAccessKeyID, col.AWSSecretAccessKey, col.CryptoKey)
+	return iam.New(session.New(), &aws.Config{
 		Region:      aws.String(col.DatacenterRegion),
 		Credentials: creds,
 	})
@@ -181,7 +207,7 @@ func mapAWSVolumes(vs []*ec2.InstanceBlockDeviceMapping, rootDevice *string) []V
 }
 
 // ToEvent converts an ec2 instance object to an ernest event
-func toEvent(i *ec2.Instance) *Event {
+func toEvent(i *ec2.Instance, profile *string) *Event {
 	tags := mapEC2Tags(i.Tags)
 	name := tags["Name"]
 
@@ -204,6 +230,7 @@ func toEvent(i *ec2.Instance) *Event {
 
 	if i.IamInstanceProfile != nil {
 		e.IAMInstanceProfileARN = i.IamInstanceProfile.Arn
+		e.IAMInstanceProfile = profile
 	}
 
 	return e

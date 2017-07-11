@@ -41,7 +41,7 @@ type Event struct {
 	IAMRoleARN           *string   `json:"iam_role_arn"`
 	Name                 *string   `json:"name"`
 	AssumePolicyDocument *string   `json:"assume_policy_document"`
-	Policies             []string  `json:"policies"`
+	Policies             []*string `json:"policies"`
 	PolicyARNs           []*string `json:"policy_arns"`
 	Description          *string   `json:"description"`
 	Path                 *string   `json:"path"`

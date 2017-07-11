@@ -153,10 +153,10 @@ func (ev *Event) Create() error {
 		}
 	}
 
-	// wait request doesn't wait long enough :/
-	time.Sleep(time.Second)
+	// because eventual consistency sucks
+	time.Sleep(time.Second * 10)
 
-	return err
+	return nil
 }
 
 // Update : Updates a role object on aws
