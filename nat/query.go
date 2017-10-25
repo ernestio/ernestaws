@@ -138,7 +138,9 @@ func (col *Collection) Find() error {
 		e := toEvent(ng, name)
 		e.RoutedNetworkAWSIDs = networks
 
-		col.Results = append(col.Results, e)
+		if name != "" {
+			col.Results = append(col.Results, e)
+		}
 	}
 
 	return nil
