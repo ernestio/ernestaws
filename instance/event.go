@@ -77,6 +77,7 @@ type Event struct {
 	AccessKeyID           string            `json:"aws_access_key_id"`
 	SecretAccessKey       string            `json:"aws_secret_access_key"`
 	Service               string            `json:"service"`
+	Powered               bool              `json:"powered"`
 	ErrorMessage          string            `json:"error,omitempty"`
 	Subject               string            `json:"-"`
 	Body                  []byte            `json:"-"`
@@ -89,7 +90,7 @@ func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
 		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
 	}
 
-	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey, Powered: true}
 }
 
 // GetBody : Gets the body for this event
@@ -308,27 +309,29 @@ func (ev *Event) Update() error {
 		return err
 	}
 
-	// power the instance back on
-	startreq := ec2.StartInstancesInput{
-		InstanceIds: []*string{ev.InstanceAWSID},
-	}
+	if ev.Powered == true {
+		// power the instance back on
+		startreq := ec2.StartInstancesInput{
+			InstanceIds: []*string{ev.InstanceAWSID},
+		}
 
-	_, err = svc.StartInstances(&startreq)
-	if err != nil {
-		return err
-	}
+		_, err = svc.StartInstances(&startreq)
+		if err != nil {
+			return err
+		}
 
-	err = svc.WaitUntilInstanceRunning(&builtInstance)
-	if err != nil {
-		return err
-	}
+		err = svc.WaitUntilInstanceRunning(&builtInstance)
+		if err != nil {
+			return err
+		}
 
-	instance, err := ev.getInstanceByID(ev.InstanceAWSID)
-	if err != nil {
-		return err
-	}
+		instance, err := ev.getInstanceByID(ev.InstanceAWSID)
+		if err != nil {
+			return err
+		}
 
-	ev.PublicIP = instance.PublicIpAddress
+		ev.PublicIP = instance.PublicIpAddress
+	}
 
 	return ev.setTags()
 }
