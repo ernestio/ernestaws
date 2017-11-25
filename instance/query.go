@@ -139,7 +139,14 @@ func (col *Collection) Find() error {
 				}
 			}
 
-			col.Results = append(col.Results, toEvent(i, profile))
+			input := ec2.DescribeInstanceStatusInput{
+				InstanceIds:         append([]*string{}, i.InstanceId),
+				IncludeAllInstances: aws.Bool(true),
+			}
+			output, _ := svc.DescribeInstanceStatus(&input)
+			status := output.InstanceStatuses[0].InstanceState.Code
+
+			col.Results = append(col.Results, toEvent(i, profile, *status))
 		}
 	}
 
@@ -207,7 +214,11 @@ func mapAWSVolumes(vs []*ec2.InstanceBlockDeviceMapping, rootDevice *string) []V
 }
 
 // ToEvent converts an ec2 instance object to an ernest event
-func toEvent(i *ec2.Instance, profile *string) *Event {
+func toEvent(i *ec2.Instance, profile *string, status int64) *Event {
+	powered := true
+	if status != 16 {
+		powered = false
+	}
 	tags := mapEC2Tags(i.Tags)
 	name := tags["Name"]
 
@@ -226,6 +237,7 @@ func toEvent(i *ec2.Instance, profile *string) *Event {
 		PublicIP:            i.PublicIpAddress,
 		Volumes:             mapAWSVolumes(i.BlockDeviceMappings, i.RootDeviceName),
 		Tags:                tags,
+		Powered:             powered,
 	}
 
 	if i.IamInstanceProfile != nil {
