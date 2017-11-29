@@ -77,6 +77,7 @@ type Event struct {
 	AccessKeyID           string            `json:"aws_access_key_id"`
 	SecretAccessKey       string            `json:"aws_secret_access_key"`
 	Service               string            `json:"service"`
+	Powered               bool              `json:"powered"`
 	ErrorMessage          string            `json:"error,omitempty"`
 	Subject               string            `json:"-"`
 	Body                  []byte            `json:"-"`
@@ -89,7 +90,7 @@ func New(subject string, body []byte, cryptoKey string) ernestaws.Event {
 		return &Collection{Subject: subject, Body: body, CryptoKey: cryptoKey}
 	}
 
-	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey}
+	return &Event{Subject: subject, Body: body, CryptoKey: cryptoKey, Powered: true}
 }
 
 // GetBody : Gets the body for this event
@@ -245,6 +246,7 @@ func (ev *Event) Create() error {
 
 // Update : Updates a instance object on aws
 func (ev *Event) Update() error {
+	var err error
 	svc := ev.getEC2Client()
 
 	builtInstance := ec2.DescribeInstancesInput{
@@ -255,24 +257,36 @@ func (ev *Event) Update() error {
 		InstanceIds: []*string{ev.InstanceAWSID},
 	}
 
-	err := svc.WaitUntilInstanceStatusOk(&okInstance)
-	if err != nil {
-		return err
+	input := ec2.DescribeInstanceStatusInput{
+		InstanceIds:         append([]*string{}, ev.InstanceAWSID),
+		IncludeAllInstances: aws.Bool(true),
 	}
+	output, _ := svc.DescribeInstanceStatus(&input)
+	status := output.InstanceStatuses[0].InstanceState.Code
 
-	stopreq := ec2.StopInstancesInput{
-		InstanceIds: []*string{ev.InstanceAWSID},
-	}
+	if *status != 80 {
+		err := svc.WaitUntilInstanceStatusOk(&okInstance)
+		if err != nil {
+			log.Println("[ERROR]: Waiting for instance to be in status OK")
+			return err
+		}
 
-	// power off the instance
-	_, err = svc.StopInstances(&stopreq)
-	if err != nil {
-		return err
-	}
+		stopreq := ec2.StopInstancesInput{
+			InstanceIds: []*string{ev.InstanceAWSID},
+		}
 
-	err = svc.WaitUntilInstanceStopped(&builtInstance)
-	if err != nil {
-		return err
+		// power off the instance
+		_, err = svc.StopInstances(&stopreq)
+		if err != nil {
+			log.Println("[ERROR]: While stopping the instance")
+			return err
+		}
+
+		err = svc.WaitUntilInstanceStopped(&builtInstance)
+		if err != nil {
+			log.Println("[ERROR]: Waiting until instance is stopped")
+			return err
+		}
 	}
 
 	// resize the instance
@@ -285,6 +299,7 @@ func (ev *Event) Update() error {
 
 	_, err = svc.ModifyInstanceAttribute(&req)
 	if err != nil {
+		log.Println("[ERROR]: Modifying instance attributes (I)")
 		return err
 	}
 
@@ -300,35 +315,42 @@ func (ev *Event) Update() error {
 
 	_, err = svc.ModifyInstanceAttribute(&req)
 	if err != nil {
+		log.Println("[ERROR]: Modifying instance attributes (II)")
 		return err
 	}
 
 	err = ev.attachVolumes()
 	if err != nil {
+		log.Println("[ERROR]: Attaching instance volumes")
 		return err
 	}
 
-	// power the instance back on
-	startreq := ec2.StartInstancesInput{
-		InstanceIds: []*string{ev.InstanceAWSID},
-	}
+	if ev.Powered == true {
+		// power the instance back on
+		startreq := ec2.StartInstancesInput{
+			InstanceIds: []*string{ev.InstanceAWSID},
+		}
 
-	_, err = svc.StartInstances(&startreq)
-	if err != nil {
-		return err
-	}
+		_, err = svc.StartInstances(&startreq)
+		if err != nil {
+			log.Println("[ERROR] While starting the instance")
+			return err
+		}
 
-	err = svc.WaitUntilInstanceRunning(&builtInstance)
-	if err != nil {
-		return err
-	}
+		err = svc.WaitUntilInstanceRunning(&builtInstance)
+		if err != nil {
+			log.Println("[ERROR] While waiting for instance to be running")
+			return err
+		}
 
-	instance, err := ev.getInstanceByID(ev.InstanceAWSID)
-	if err != nil {
-		return err
-	}
+		instance, err := ev.getInstanceByID(ev.InstanceAWSID)
+		if err != nil {
+			log.Println("[ERROR]: Getting instance by id")
+			return err
+		}
 
-	ev.PublicIP = instance.PublicIpAddress
+		ev.PublicIP = instance.PublicIpAddress
+	}
 
 	return ev.setTags()
 }
