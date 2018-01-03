@@ -154,8 +154,9 @@ func (ev *Event) Find() error {
 func (ev *Event) Create() error {
 	svc := ev.getRoute53Client()
 
+	uid, _ := uuid.NewV4()
 	req := &route53.CreateHostedZoneInput{
-		CallerReference: aws.String(uuid.NewV4().String()),
+		CallerReference: aws.String(uid.String()),
 		Name:            ev.Name,
 	}
 
