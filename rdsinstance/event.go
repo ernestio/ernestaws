@@ -227,6 +227,10 @@ func (ev *Event) Delete() error {
 		time.Sleep(time.Second * 3)
 	}
 
+	if ev.Cluster != nil {
+		return nil
+	}
+
 	return deleteSubnetGroup(ev)
 }
 
